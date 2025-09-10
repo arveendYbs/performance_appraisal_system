@@ -1,0 +1,267 @@
+
+<?php
+// admin/users/create.php
+require_once __DIR__ . '/../../config/config.php';
+
+if (!hasRole('admin')) {
+    redirect(BASE_URL . '/index.php', 'Access denied.', 'error');
+}
+
+$error_message = '';
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+        $error_message = 'Invalid request. Please try again.';
+    } else {
+        $name = sanitize($_POST['name'] ?? '');
+        $emp_number = sanitize($_POST['emp_number'] ?? '');
+        $email = sanitize($_POST['email'] ?? '');
+        $emp_email = sanitize($_POST['emp_email'] ?? '');
+        $position = sanitize($_POST['position'] ?? '');
+        $direct_superior = !empty($_POST['direct_superior']) ? $_POST['direct_superior'] : null;
+        $department = sanitize($_POST['department'] ?? '');
+        $date_joined = $_POST['date_joined'] ?? '';
+        $site = sanitize($_POST['site'] ?? '');
+        $role = $_POST['role'] ?? '';
+        $password = $_POST['password'] ?? '';
+        $confirm_password = $_POST['confirm_password'] ?? '';
+
+        // Validation
+        if (empty($name) || empty($emp_number) || empty($email) || empty($position) || 
+            empty($department) || empty($date_joined) || empty($site) || empty($role) || 
+            empty($password)) {
+            $error_message = 'All fields are required except company email and direct superior.';
+        } elseif (!validateEmail($email)) {
+            $error_message = 'Invalid email format.';
+        } elseif (!empty($emp_email) && !validateEmail($emp_email)) {
+            $error_message = 'Invalid company email format.';
+        } elseif ($password !== $confirm_password) {
+            $error_message = 'Passwords do not match.';
+        } elseif (strlen($password) < 6) {
+            $error_message = 'Password must be at least 6 characters long.';
+        } else {
+            try {
+                $database = new Database();
+                $db = $database->getConnection();
+                $user = new User($db);
+
+                $user->name = $name;
+                $user->emp_number = $emp_number;
+                $user->email = $email;
+                $user->emp_email = $emp_email;
+                $user->position = $position;
+                $user->direct_superior = $direct_superior;
+                $user->department = $department;
+                $user->date_joined = $date_joined;
+                $user->site = $site;
+                $user->role = $role;
+                $user->password = $password;
+
+                if ($user->create()) {
+                    logActivity($_SESSION['user_id'], 'CREATE', 'users', $user->id, null,
+                               ['name' => $name, 'emp_number' => $emp_number, 'role' => $role],
+                               'Created new user: ' . $name);
+                    
+                    redirect('index.php', 'User created successfully!', 'success');
+                } else {
+                    $error_message = 'Failed to create user. Email or employee number may already exist.';
+                }
+            } catch (Exception $e) {
+                error_log("User create error: " . $e->getMessage());
+                $error_message = 'An error occurred. Please try again.';
+            }
+        }
+    }
+}
+
+// Get potential supervisors
+try {
+    $database = new Database();
+    $db = $database->getConnection();
+    
+    $stmt = $db->query("SELECT id, name, position FROM users WHERE role IN ('admin', 'manager') AND is_active = 1 ORDER BY name");
+    $supervisors = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+} catch (Exception $e) {
+    $supervisors = [];
+}
+
+require_once __DIR__ . '/../../includes/header.php';
+?>
+
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3 mb-0">
+                <i class="bi bi-person-plus me-2"></i>Add New User
+            </h1>
+            <a href="index.php" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Back to Users
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">User Information</h5>
+            </div>
+            <div class="card-body">
+                <?php if (!empty($error_message)): ?>
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-circle me-2"></i><?php echo htmlspecialchars($error_message); ?>
+                </div>
+                <?php endif; ?>
+
+                <form method="POST" action="">
+                    <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Full Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name" required
+                                       value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="emp_number" class="form-label">Employee Number <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="emp_number" name="emp_number" required
+                                       value="<?php echo htmlspecialchars($_POST['emp_number'] ?? ''); ?>">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Personal Email <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control" id="email" name="email" required
+                                       value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
+                                <div class="form-text">Used for login</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="emp_email" class="form-label">Company Email</label>
+                                <input type="email" class="form-control" id="emp_email" name="emp_email"
+                                       value="<?php echo htmlspecialchars($_POST['emp_email'] ?? ''); ?>">
+                                <div class="form-text">Optional - can also be used for login</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="position" class="form-label">Position <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="position" name="position" required
+                                       value="<?php echo htmlspecialchars($_POST['position'] ?? ''); ?>">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="direct_superior" class="form-label">Direct Superior</label>
+                                <select class="form-select" id="direct_superior" name="direct_superior">
+                                    <option value="">Select supervisor...</option>
+                                    <?php foreach ($supervisors as $supervisor): ?>
+                                    <option value="<?php echo $supervisor['id']; ?>" 
+                                            <?php echo (($_POST['direct_superior'] ?? '') == $supervisor['id']) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($supervisor['name'] . ' - ' . $supervisor['position']); ?>
+                                    </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="department" class="form-label">Department <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="department" name="department" required
+                                       value="<?php echo htmlspecialchars($_POST['department'] ?? ''); ?>">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="site" class="form-label">Site <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="site" name="site" required
+                                       value="<?php echo htmlspecialchars($_POST['site'] ?? ''); ?>">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="date_joined" class="form-label">Date Joined <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="date_joined" name="date_joined" required
+                                       value="<?php echo htmlspecialchars($_POST['date_joined'] ?? ''); ?>">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="role" class="form-label">Role <span class="text-danger">*</span></label>
+                                <select class="form-select" id="role" name="role" required>
+                                    <option value="">Select role...</option>
+                                    <option value="admin" <?php echo (($_POST['role'] ?? '') == 'admin') ? 'selected' : ''; ?>>Administrator</option>
+                                    <option value="manager" <?php echo (($_POST['role'] ?? '') == 'manager') ? 'selected' : ''; ?>>Manager</option>
+                                    <option value="employee" <?php echo (($_POST['role'] ?? '') == 'employee') ? 'selected' : ''; ?>>Employee</option>
+                                    <option value="worker" <?php echo (($_POST['role'] ?? '') == 'worker') ? 'selected' : ''; ?>>Worker</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
+                                <input type="password" class="form-control" id="password" name="password" required minlength="6">
+                                <div class="form-text">Minimum 6 characters</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="confirm_password" class="form-label">Confirm Password <span class="text-danger">*</span></label>
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password" required minlength="6">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="index.php" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save me-2"></i>Create User
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Password confirmation validation
+document.addEventListener('DOMContentLoaded', function() {
+    const password = document.getElementById('password');
+    const confirmPassword = document.getElementById('confirm_password');
+    
+    function validatePasswords() {
+        if (password.value !== confirmPassword.value) {
+            confirmPassword.setCustomValidity('Passwords do not match');
+        } else {
+            confirmPassword.setCustomValidity('');
+        }
+    }
+    
+    password.addEventListener('input', validatePasswords);
+    confirmPassword.addEventListener('input', validatePasswords);
+});
+</script>
+
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
