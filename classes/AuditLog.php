@@ -22,15 +22,21 @@ class AuditLog {
 
         $stmt = $this->conn->prepare($query);
         
+        // Get client information
         $ip_address = $_SERVER['REMOTE_ADDR'] ?? '';
         $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
         
+        // Convert arrays to JSON strings and store in variables
+        $old_values_json = json_encode($old_values);
+        $new_values_json = json_encode($new_values);
+        
+        // Bind parameters using variables
         $stmt->bindParam(':user_id', $user_id);
         $stmt->bindParam(':action', $action);
         $stmt->bindParam(':table_name', $table_name);
         $stmt->bindParam(':record_id', $record_id);
-        $stmt->bindParam(':old_values', json_encode($old_values));
-        $stmt->bindParam(':new_values', json_encode($new_values));
+        $stmt->bindParam(':old_values', $old_values_json);  // Now binding the variable
+        $stmt->bindParam(':new_values', $new_values_json);  // Now binding the variable
         $stmt->bindParam(':details', $details);
         $stmt->bindParam(':ip_address', $ip_address);
         $stmt->bindParam(':user_agent', $user_agent);

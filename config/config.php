@@ -1,4 +1,3 @@
-
 <?php
 // config/config.php
 
@@ -33,8 +32,7 @@ define('RECORDS_PER_PAGE', 10);
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Include required files
-require_once 'database.php';
+// Include required files first
 require_once __DIR__ . '/../includes/functions.php';
 
 // Autoload classes
@@ -44,4 +42,7 @@ spl_autoload_register(function ($class_name) {
         require_once $file;
     }
 });
+
+// Include database after autoloading
+require_once __DIR__ . '/../classes/Database.php';
 ?>

@@ -2,6 +2,7 @@
 <?php
 // admin/users/create.php
 require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../includes/sidebar.php';
 
 if (!hasRole('admin')) {
     redirect(BASE_URL . '/index.php', 'Access denied.', 'error');

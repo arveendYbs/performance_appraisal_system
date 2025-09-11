@@ -2,6 +2,7 @@
 <?php
 // manager/team.php
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/sidebar.php';
 
 if (!hasRole('manager') && !hasRole('admin')) {
     redirect(BASE_URL . '/index.php', 'Access denied.', 'error');

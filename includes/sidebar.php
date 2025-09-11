@@ -1,5 +1,6 @@
 
 <?php
+ob_start(); 
 // includes/sidebar.php
 $current_page = basename($_SERVER['PHP_SELF']);
 $current_path = $_SERVER['REQUEST_URI'];

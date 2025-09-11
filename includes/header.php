@@ -1,5 +1,7 @@
 
 <?php
+ob_start();
+
 require_once __DIR__ . '/../config/config.php';
 require_once 'auth_check.php';
 ?>

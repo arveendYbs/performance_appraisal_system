@@ -201,7 +201,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <div class="text-center mt-4">
                     <small class="text-white-50">
                         <?php echo APP_NAME; ?> v<?php echo APP_VERSION; ?> - 
-                        © <?php echo date('Y'); ?> YBS International
+                        © <?php echo date('Y'); ?> YBS International by AP
                     </small>
                 </div>
             </div>

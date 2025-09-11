@@ -8,6 +8,7 @@ if (!hasRole('admin')) {
 }
 
 require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../../includes/sidebar.php';
 
 $page = $_GET['page'] ?? 1;
 $records_per_page = 10;

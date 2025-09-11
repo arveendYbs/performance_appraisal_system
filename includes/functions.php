@@ -62,10 +62,19 @@ function hasRole($required_role) {
  * Redirect with message
  */
 function redirect($url, $message = '', $type = 'info') {
+    // Start output buffering if it's not already started
+    if (!ob_get_level()) {
+        ob_start();
+    }
+    
     if (!empty($message)) {
         $_SESSION['flash_message'] = $message;
         $_SESSION['flash_type'] = $type;
     }
+    
+    // Clear any existing output
+    ob_end_clean();
+    
     header("Location: " . $url);
     exit();
 }

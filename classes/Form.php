@@ -1,5 +1,5 @@
+
 <?php
-// classes/Form.php
 
 class Form {
     private $conn;
@@ -25,8 +25,7 @@ class Form {
                  SET form_type = :form_type,
                      title = :title,
                      description = :description,
-                     is_active = :is_active,
-                     created_at = :created_at";
+                     is_active = :is_active";
 
         $stmt = $this->conn->prepare($query);
 
@@ -35,16 +34,18 @@ class Form {
         $this->title = htmlspecialchars(strip_tags($this->title));
         $this->description = htmlspecialchars(strip_tags($this->description));
         $this->is_active = (int)$this->is_active;
-        $this->created_at = date('Y-m-d H:i:s');
 
         // Bind parameters
         $stmt->bindParam(':form_type', $this->form_type);
         $stmt->bindParam(':title', $this->title);
         $stmt->bindParam(':description', $this->description);
         $stmt->bindParam(':is_active', $this->is_active);
-        $stmt->bindParam(':created_at', $this->created_at);
 
-        return $stmt->execute();
+        if ($stmt->execute()) {
+            $this->id = $this->conn->lastInsertId();
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -75,9 +76,46 @@ class Form {
             $this->title = $row['title'];
             $this->description = $row['description'];
             $this->is_active = $row['is_active'];
+            $this->created_at = $row['created_at'];
             return true;
         }
         return false;
+    }
+
+    /**
+     * Update form
+     */
+    public function update() {
+        $query = "UPDATE " . $this->table_name . "
+                  SET title = :title,
+                      description = :description,
+                      is_active = :is_active
+                  WHERE id = :id";
+
+        $stmt = $this->conn->prepare($query);
+
+        // Sanitize inputs
+        $this->title = htmlspecialchars(strip_tags($this->title));
+        $this->description = htmlspecialchars(strip_tags($this->description));
+        $this->is_active = (int)$this->is_active;
+
+        // Bind parameters
+        $stmt->bindParam(':title', $this->title);
+        $stmt->bindParam(':description', $this->description);
+        $stmt->bindParam(':is_active', $this->is_active);
+        $stmt->bindParam(':id', $this->id);
+
+        return $stmt->execute();
+    }
+
+    /**
+     * Delete form
+     */
+    public function delete() {
+        $query = "DELETE FROM " . $this->table_name . " WHERE id = :id";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id', $this->id);
+        return $stmt->execute();
     }
 
     /**
@@ -116,7 +154,8 @@ class Form {
                     'text' => $row['question_text'],
                     'description' => $row['question_description'],
                     'response_type' => $row['response_type'],
-                    'options' => json_decode($row['options'], true),
+                    'options' => !is_null($row['options']) ? json_decode($row['options'], true) : [],
+                
                     'is_required' => $row['is_required'],
                     'order' => $row['question_order']
                 ];
@@ -138,8 +177,9 @@ class Form {
 
         $form_type = $form_type_map[$role] ?? 'general';
 
-        $query = "SELECT id FROM " . $this->table_name . " 
+        $query = "SELECT * FROM " . $this->table_name . " 
                   WHERE form_type = :form_type AND is_active = 1 
+                  ORDER BY created_at DESC
                   LIMIT 1";
 
         $stmt = $this->conn->prepare($query);
@@ -149,11 +189,36 @@ class Form {
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($row) {
             $this->id = $row['id'];
-            return $this->readOne();
+            $this->form_type = $row['form_type'];
+            $this->title = $row['title'];
+            $this->description = $row['description'];
+            $this->is_active = $row['is_active'];
+            $this->created_at = $row['created_at'];
+            return true;
         }
         return false;
     }
-    
-   
 
+    /**
+     * Count forms
+     */
+    public function count() {
+        $query = "SELECT COUNT(*) as total FROM " . $this->table_name;
+        $stmt = $this->conn->prepare($query);
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row['total'];
+    }
+
+    /**
+     * Check if form is being used in appraisals
+     */
+    public function isInUse() {
+        $query = "SELECT COUNT(*) as count FROM appraisals WHERE form_id = :id";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id', $this->id);
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row['count'] > 0;
+    }
 }
