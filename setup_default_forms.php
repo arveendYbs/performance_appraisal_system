@@ -1,8 +1,9 @@
 
 <?php
-// Default form setup script (to be run after database creation)
-// setup_default_forms.php
 require_once 'config/config.php';
+
+echo "Performance Appraisal System - Default Forms Setup\n";
+echo "==================================================\n\n";
 
 try {
     $database = new Database();
@@ -13,11 +14,11 @@ try {
     $count = $stmt->fetch()['count'];
     
     if ($count > 0) {
-        echo "Default forms already exist.\n";
+        echo "Default forms already exist. Skipping setup.\n";
         exit;
     }
     
-    echo "Setting up default forms...\n";
+    echo "Setting up default forms...\n\n";
     
     // Create default forms
     $forms = [
@@ -27,6 +28,8 @@ try {
     ];
     
     foreach ($forms as $form_data) {
+        echo "Creating form: {$form_data[1]}...\n";
+        
         $form = new Form($db);
         $form->form_type = $form_data[0];
         $form->title = $form_data[1];
@@ -34,20 +37,26 @@ try {
         $form->is_active = 1;
         
         if ($form->create()) {
-            echo "Created form: {$form_data[1]}\n";
+            echo "✓ Form created successfully\n";
             
             // Create default sections for this form
             createDefaultSections($db, $form->id, $form_data[0]);
-            echo "Added default sections and questions for {$form_data[0]} form\n";
+            echo "✓ Default sections and questions added\n\n";
+        } else {
+            echo "✗ Failed to create form\n\n";
         }
     }
     
     echo "Default forms setup completed successfully!\n";
+    echo "\nYou can now:\n";
+    echo "1. Login with admin@company.com / password\n";
+    echo "2. Create users in Admin → User Management\n";
+    echo "3. Customize forms in Admin → Form Management\n";
     
 } catch (Exception $e) {
     echo "Error setting up default forms: " . $e->getMessage() . "\n";
+    exit(1);
 }
-
 
 /**
  * Create default sections for a form
@@ -205,5 +214,6 @@ function createDefaultQuestions($db, $section_id, $section_title, $form_type) {
             $question['options'] ?? null,
             $question['order']
         ]);
-    }}
+    }
+}
 ?>
