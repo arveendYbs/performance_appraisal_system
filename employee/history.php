@@ -103,7 +103,7 @@ try {
                                 </td>
                                 <td>
                                     <?php if ($appraisal['grade']): ?>
-                                    <span class="badge bg-secondary <?php echo getGradeColorClass($appraisal['grade']); ?>">
+                                    <span class="badge bg-light <?php echo getGradeColorClass($appraisal['grade']); ?>">
                                         <?php echo $appraisal['grade']; ?>
                                     </span>
                                     <?php else: ?>

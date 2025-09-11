@@ -146,6 +146,9 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <option value="rating_10" <?php echo (($_POST['response_type'] ?? '') == 'rating_10') ? 'selected' : ''; ?>>Rating Scale (0-10)</option>
                                     <option value="checkbox" <?php echo (($_POST['response_type'] ?? '') == 'checkbox') ? 'selected' : ''; ?>>Multiple Choice (Checkboxes)</option>
                                     <option value="radio" <?php echo (($_POST['response_type'] ?? '') == 'radio') ? 'selected' : ''; ?>>Single Choice (Radio)</option>
+                                    <option value="display" <?php echo (($_POST['response_type'] ?? '') == 'display') ? 'selected' : ''; ?>>Display Only</option>
+
+
                                 </select>
                             </div>
                         </div>
@@ -184,6 +187,8 @@ require_once __DIR__ . '/../../includes/header.php';
                             <li><strong>Rating 0-10:</strong> Performance assessment scale</li>
                             <li><strong>Checkboxes:</strong> Multiple selections allowed (training needs)</li>
                             <li><strong>Radio:</strong> Single selection only</li>
+                            <li><strong>Display Only:</strong> Show information without requiring input</li>
+
                         </ul>
                     </div>
                     

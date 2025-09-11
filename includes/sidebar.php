@@ -8,7 +8,7 @@ $current_path = $_SERVER['REQUEST_URI'];
 
 <div class="sidebar" id="sidebar">
     <div class="logo">
-        <h4><i class="bi bi-clipboard-data"></i> PAS</h4>
+        <h4><i class="bi bi-clipboard-data"></i> YBS</h4>
         <small>Performance Appraisal System</small>
     </div>
     

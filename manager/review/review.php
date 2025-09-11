@@ -62,41 +62,30 @@ try {
     redirect('pending.php', 'An error occurred. Please try again.', 'error');
 }
 
-// Handle form submission for manager feedback
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
-        redirect('review.php?id=' . $appraisal_id, 'Invalid request. Please try again.', 'error');
-    }
-    
-    try {
-        // Save manager responses
-        foreach ($_POST as $key => $value) {
-            if (strpos($key, 'manager_rating_') === 0) {
-                $question_id = str_replace('manager_rating_', '', $key);
-                $rating = !empty($value) ? intval($value) : null;
-                $comment_key = 'manager_comment_' . $question_id;
-                $comment = $_POST[$comment_key] ?? null;
-                
-                // Save manager rating and comment
-                $query = "INSERT INTO responses (appraisal_id, question_id, manager_rating, manager_comments)
-                         VALUES (?, ?, ?, ?)
-                         ON DUPLICATE KEY UPDATE 
-                         manager_rating = VALUES(manager_rating),
-                         manager_comments = VALUES(manager_comments)";
-                
-                $stmt = $db->prepare($query);
-                $stmt->execute([$appraisal_id, $question_id, $rating, $comment]);
-            }
+foreach ($_POST as $key => $value) {
+    if (strpos($key, 'manager_rating_') === 0) {
+        $question_id = str_replace('manager_rating_', '', $key);
+        $rating = !empty($value) ? intval($value) : null;
+        $comment_key = 'manager_comment_' . $question_id;
+        $comment = $_POST[$comment_key] ?? null;
+        
+        // Check if response exists
+        $check_query = "SELECT * FROM responses WHERE appraisal_id = ? AND question_id = ?";
+        $check_stmt = $db->prepare($check_query);
+        $check_stmt->execute([$appraisal_id, $question_id]);
+        $existing = $check_stmt->fetch();
+        
+        if ($existing) {
+            // Update existing
+            $query = "UPDATE responses SET manager_rating = ?, manager_comments = ? WHERE appraisal_id = ? AND question_id = ?";
+            $stmt = $db->prepare($query);
+            $stmt->execute([$rating, $comment, $appraisal_id, $question_id]);
+        } else {
+            // Insert new
+            $query = "INSERT INTO responses (appraisal_id, question_id, manager_rating, manager_comments) VALUES (?, ?, ?, ?)";
+            $stmt = $db->prepare($query);
+            $stmt->execute([$appraisal_id, $question_id, $rating, $comment]);
         }
-        
-        logActivity($_SESSION['user_id'], 'UPDATE', 'appraisals', $appraisal_id, null, null, 
-                   'Updated manager review for ' . $appraisal_data['employee_name']);
-        
-        redirect('review.php?id=' . $appraisal_id, 'Review progress saved successfully!', 'success');
-        
-    } catch (Exception $e) {
-        error_log("Save manager review error: " . $e->getMessage());
-        redirect('review.php?id=' . $appraisal_id, 'Failed to save review. Please try again.', 'error');
     }
 }
 ?>
@@ -232,14 +221,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <?php if (in_array($question['response_type'], ['rating_5', 'rating_10'])): ?>
                         <?php if ($response && $response['employee_rating'] !== null): ?>
                         <div class="mb-2">
-                            <span class="badge bg-info me-2">Rating: <?php echo $response['employee_rating']; ?></span>
+                            <span class="badge bg-info me-2">Employee Rating: <?php echo $response['employee_rating']; ?></span>
                             <span class="text-muted">
                                 <?php 
                                 $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10;
-                                $stars = round(($response['employee_rating'] / $max_rating) * 5);
-                                for ($i = 1; $i <= 5; $i++) {
-                                    echo $i <= $stars ? '<i class="bi bi-star-fill text-warning"></i>' : '<i class="bi bi-star text-muted"></i>';
-                                }
+                                $percentage = round(($response['employee_rating'] / $max_rating) * 100);
+                                echo "({$percentage}%)";
                                 ?>
                             </span>
                         </div>
@@ -257,6 +244,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             <?php else: ?>
                                 <em class="text-muted">No options selected</em>
                             <?php endif; ?>
+                        <?php elseif ($question['response_type'] === 'display'): ?>
+                            <div class="alert alert-light">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <?php echo nl2br(htmlspecialchars($question['text'])); ?>
+                            </div>
                         <?php else: ?>
                             <?php if ($response && ($response['employee_response'] || $response['employee_comments'])): ?>
                                 <?php if ($response['employee_response']): ?>
@@ -274,30 +266,44 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <div class="manager-column">
                         <div class="column-header">Manager Assessment</div>
                         
+                        <?php if ($question['response_type'] === 'display'): ?>
+                            <em class="text-muted">Display only - no assessment required</em>
+                        <?php else: ?>
+                        
                         <?php if (in_array($question['response_type'], ['rating_5', 'rating_10'])): ?>
                         <div class="mb-3">
                             <label class="form-label">Your Rating</label>
-                            <div class="row align-items-center">
-                                <div class="col-8">
-                                    <?php $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10; ?>
-                                    <input type="range" class="form-range" min="<?php echo $question['response_type'] === 'rating_5' ? '1' : '0'; ?>" max="<?php echo $max_rating; ?>" step="1"
-                                           name="manager_rating_<?php echo $question['id']; ?>" 
-                                           id="manager_rating_<?php echo $question['id']; ?>"
-                                           value="<?php echo $response['manager_rating'] ?? ($question['response_type'] === 'rating_5' ? 3 : 5); ?>"
-                                           oninput="updateRatingValue(this, 'manager_display_<?php echo $question['id']; ?>')">
-                                </div>
-                                <div class="col-4">
-                                    <span class="badge bg-success fs-6" id="manager_display_<?php echo $question['id']; ?>">
-                                        <?php echo $response['manager_rating'] ?? ($question['response_type'] === 'rating_5' ? 3 : 5); ?>
-                                    </span>
-                                    <small class="text-muted d-block"><?php echo $question['response_type'] === 'rating_5' ? '1-5 Scale' : '0-10 Scale'; ?></small>
-                                </div>
-                            </div>
+                            <?php $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10; ?>
+                            <select class="form-select" name="manager_rating_<?php echo $question['id']; ?>" id="manager_rating_<?php echo $question['id']; ?>">
+                                <option value="">Select rating...</option>
+                                <?php if ($question['response_type'] === 'rating_5'): ?>
+                                    <option value="1" <?php echo ($response['manager_rating'] ?? '') == '1' ? 'selected' : ''; ?>>1 - Poor</option>
+                                    <option value="2" <?php echo ($response['manager_rating'] ?? '') == '2' ? 'selected' : ''; ?>>2 - Below Average</option>
+                                    <option value="3" <?php echo ($response['manager_rating'] ?? '') == '3' ? 'selected' : ''; ?>>3 - Average</option>
+                                    <option value="4" <?php echo ($response['manager_rating'] ?? '') == '4' ? 'selected' : ''; ?>>4 - Good</option>
+                                    <option value="5" <?php echo ($response['manager_rating'] ?? '') == '5' ? 'selected' : ''; ?>>5 - Excellent</option>
+                                <?php else: ?>
+                                    <?php for ($i = 0; $i <= 10; $i++): ?>
+                                    <option value="<?php echo $i; ?>" <?php echo ($response['manager_rating'] ?? '') == $i ? 'selected' : ''; ?>>
+                                        <?php echo $i; ?> - <?php 
+                                        if ($i == 0) echo 'Not Applicable';
+                                        elseif ($i <= 2) echo 'Poor';
+                                        elseif ($i <= 4) echo 'Below Average';
+                                        elseif ($i <= 6) echo 'Average';
+                                        elseif ($i <= 8) echo 'Good';
+                                        else echo 'Excellent';
+                                        ?>
+                                    </option>
+                                    <?php endfor; ?>
+                                <?php endif; ?>
+                            </select>
                         </div>
                         <?php endif; ?>
                         
                         <textarea class="form-control" name="manager_comment_<?php echo $question['id']; ?>" rows="3"
                                   placeholder="Provide your assessment and feedback..."><?php echo htmlspecialchars($response['manager_comments'] ?? ''); ?></textarea>
+                        
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>

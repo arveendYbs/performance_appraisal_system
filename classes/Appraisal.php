@@ -41,7 +41,27 @@ class Appraisal {
         }
         return false;
     }
+    public function readOne() {
+        $query = "SELECT * FROM " . $this->table_name . " WHERE id = :id LIMIT 1";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id', $this->id);
+        $stmt->execute();
 
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            $this->user_id = $row['user_id'];
+            $this->form_id = $row['form_id'];
+            $this->appraiser_id = $row['appraiser_id'];
+            $this->appraisal_period_from = $row['appraisal_period_from'];
+            $this->appraisal_period_to = $row['appraisal_period_to'];
+            $this->status = $row['status'];
+            $this->total_score = $row['total_score'];
+            $this->performance_score = $row['performance_score'];
+            $this->grade = $row['grade'];
+            return true;
+        }
+        return false;
+    }
     /**
      * Get user's current appraisal
      */
@@ -72,6 +92,7 @@ class Appraisal {
         }
         return false;
     }
+
 
     /**
      * Get pending appraisals for manager

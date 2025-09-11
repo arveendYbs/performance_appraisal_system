@@ -79,6 +79,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         error_log("Save appraisal error: " . $e->getMessage());
         redirect('continue.php', 'Failed to save. Please try again.', 'error');
     }
+    foreach ($_POST as $key => $value) {
+    if (strpos($key, 'manager_rating_') === 0) {
+        $question_id = str_replace('manager_rating_', '', $key);
+        $rating = !empty($value) ? intval($value) : null;
+        $comment_key = 'manager_comment_' . $question_id;
+        $comment = $_POST[$comment_key] ?? null;
+        
+        // Check if response exists
+        $check_query = "SELECT * FROM responses WHERE appraisal_id = ? AND question_id = ?";
+        $check_stmt = $db->prepare($check_query);
+        $check_stmt->execute([$appraisal_id, $question_id]);
+        $existing = $check_stmt->fetch();
+        
+        if ($existing) {
+            // Update existing
+            $query = "UPDATE responses SET manager_rating = ?, manager_comments = ? WHERE appraisal_id = ? AND question_id = ?";
+            $stmt = $db->prepare($query);
+            $stmt->execute([$rating, $comment, $appraisal_id, $question_id]);
+        } else {
+            // Insert new
+            $query = "INSERT INTO responses (appraisal_id, question_id, manager_rating, manager_comments) VALUES (?, ?, ?, ?)";
+            $stmt = $db->prepare($query);
+            $stmt->execute([$appraisal_id, $question_id, $rating, $comment]);
+        }
+    }
+}
 }
 ?>
 
@@ -155,9 +181,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             
             <div class="mt-4">
                 <label class="form-label"><strong>Overall Comments on Cultural Values</strong></label>
-                <textarea class="form-control" name="cultural_values_overall" rows="4"
-                          placeholder="Provide overall comments on how you demonstrate the company's cultural values..."></textarea>
-            </div>
+                <textarea class="form-control" name="cultural_values_overall" rows="4"><?php 
+                    // Get existing cultural values overall comment
+                    $cultural_overall = '';
+                    foreach ($existing_responses as $qid => $resp) {
+                        if ($resp['employee_comments'] === 'Cultural Values Overall Comments') {
+                            $cultural_overall = $resp['employee_response'] ?? '';
+                            break;
+                        }
+                    }
+                    echo htmlspecialchars($cultural_overall);
+                    ?></textarea>
+                        </div>
             
             <?php else: ?>
             <!-- Regular questions -->
@@ -206,7 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                   placeholder="Comments (optional)..."><?php echo htmlspecialchars($existing_response['employee_comments'] ?? ''); ?></textarea>
                     <?php break;
                     
-                    case 'rating_10': ?>
+                    /* case 'rating_10': ?>
                         <div class="row align-items-center">
                             <div class="col-md-8">
                                 <input type="range" class="form-range" min="0" max="10" step="1"
@@ -224,8 +259,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         </div>
                         <textarea class="form-control mt-2" name="comment_<?php echo $question['id']; ?>" rows="2"
                                   placeholder="Comments (optional)..."><?php echo htmlspecialchars($existing_response['employee_comments'] ?? ''); ?></textarea>
+                    <?php break; */
+
+                    case 'rating_10': ?>
+                        <select class="form-select" name="rating_<?php echo $question['id']; ?>">
+                            <option value="">Select rating...</option>
+                            <?php for ($i = 0; $i <= 10; $i++): ?>
+                            <option value="<?php echo $i; ?>" <?php echo ($existing_response['employee_rating'] ?? '') == $i ? 'selected' : ''; ?>>
+                                <?php echo $i; ?> - <?php 
+                                if ($i == 0) echo 'Not Applicable';
+                                elseif ($i <= 2) echo 'Poor';
+                                elseif ($i <= 4) echo 'Below Average';
+                                elseif ($i <= 6) echo 'Average';
+                                elseif ($i <= 8) echo 'Good';
+                                else echo 'Excellent';
+                                ?>
+                            </option>
+                            <?php endfor; ?>
+                        </select>   
+                        <textarea class="form-control mt-2" name="comment_<?php echo $question['id']; ?>" rows="2"
+                                  placeholder="Comments (optional)..."><?php echo htmlspecialchars($existing_response['employee_comments'] ?? ''); ?></textarea>
                     <?php break;
-                    
+
                     case 'checkbox': 
                         $options = $question['options'] ?? [];
                         $selected = explode(', ', $existing_response['employee_response'] ?? '');
