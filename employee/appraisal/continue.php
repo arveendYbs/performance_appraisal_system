@@ -38,74 +38,125 @@ try {
     error_log("Continue appraisal error: " . $e->getMessage());
     redirect('../index.php', 'An error occurred. Please try again.', 'error');
 }
-
 // Handle form submission
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    error_log("POST Data: " . print_r($_POST, true));
+
     if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
         redirect('continue.php', 'Invalid request. Please try again.', 'error');
     }
-    
+
     $action = $_POST['action'] ?? 'save';
-    
+    $appraisal_id = $appraisal->id; // IMPORTANT: defined once
+    $success = true;
+
     try {
-        // Save responses
+        // 1) Save section comments first (section_comment_{id})
         foreach ($_POST as $key => $value) {
-            if (strpos($key, 'question_') === 0) {
-                $question_id = str_replace('question_', '', $key);
-                $rating_key = 'rating_' . $question_id;
-                $comment_key = 'comment_' . $question_id;
-                
-                $response = is_array($value) ? implode(', ', $value) : $value;
-                $rating = $_POST[$rating_key] ?? null;
-                $comment = $_POST[$comment_key] ?? null;
-                
-                $appraisal->saveResponse($question_id, $response, $rating, $comment);
+            if (strpos($key, 'section_comment_') === 0) {
+                $section_id = (int) str_replace('section_comment_', '', $key);
+                if (!$appraisal->saveSectionComment($section_id, $value)) {
+                    error_log("Failed to save section comment for section_id={$section_id}: " . print_r($value, true));
+                    $success = false;
+                }
             }
         }
-        
-        // Update status if submitting
+
+        // 2) Save employee responses (question_{id}) and associated rating/comment fields
+        foreach ($_POST as $key => $value) {
+            if (strpos($key, 'question_') === 0) {
+                $question_id = (int) str_replace('question_', '', $key);
+                $response = is_array($value) ? implode(', ', $value) : $value;
+                $employee_rating = $_POST['rating_' . $question_id] ?? null;
+                $employee_comment = $_POST['comment_' . $question_id] ?? null;
+
+                // Your Appraisal::saveResponse expects:
+                // saveResponse($question_id, $employee_response = null, $employee_rating = null, $employee_comments = null,
+                //              $manager_response = null, $manager_rating = null, $manager_comments = null)
+                if (!$appraisal->saveResponse(
+                    $question_id,
+                    $response,
+                    $employee_rating,
+                    $employee_comment,
+                    null,
+                    null,
+                    null
+                )) {
+                    error_log("Failed to save employee response for question_id={$question_id}");
+                    $success = false;
+                }
+            }
+        }
+
+        // 3) Handle standalone rating_ or comment_ fields for questions that don't post 'question_' (if any)
+        foreach ($_POST as $key => $value) {
+            if (strpos($key, 'rating_') === 0) {
+                $question_id = (int) str_replace('rating_', '', $key);
+                // if question_ was not posted we save rating only
+                if (!isset($_POST['question_' . $question_id])) {
+                    $employee_comment = $_POST['comment_' . $question_id] ?? null;
+                    if (!$appraisal->saveResponse($question_id, null, $value, $employee_comment, null, null, null)) {
+                        error_log("Failed to save standalone rating for question_id={$question_id}");
+                        $success = false;
+                    }
+                }
+            } elseif (strpos($key, 'comment_') === 0) {
+                $question_id = (int) str_replace('comment_', '', $key);
+                if (!isset($_POST['question_' . $question_id]) && !isset($_POST['rating_' . $question_id])) {
+                    if (!$appraisal->saveResponse($question_id, null, null, $value, null, null, null)) {
+                        error_log("Failed to save standalone comment for question_id={$question_id}");
+                        $success = false;
+                    }
+                }
+            }
+        }
+
+        // 4) Save manager inputs (if this page is used by managers or manager fields posted)
+        // manager_rating_{id} and manager_comment_{id}
+        foreach ($_POST as $key => $value) {
+            if (strpos($key, 'manager_rating_') === 0) {
+                $question_id = (int) str_replace('manager_rating_', '', $key);
+                $mgr_rating = !empty($value) ? intval($value) : null;
+                $mgr_comment = $_POST['manager_comment_' . $question_id] ?? null;
+
+                // Use saveResponse to set manager columns (pass manager params in the later args)
+                if (!$appraisal->saveResponse(
+                    $question_id,
+                    null,  // employee_response
+                    null,  // employee_rating
+                    null,  // employee_comments
+                    null,  // manager_response
+                    $mgr_rating,
+                    $mgr_comment
+                )) {
+                    error_log("Failed to save manager rating/comment for question_id={$question_id}");
+                    $success = false;
+                }
+            }
+        }
+
+        // 5) If anything failed, throw to return error to user
+        if (!$success) {
+            throw new Exception('One or more saves failed. Check logs for details.');
+        }
+
+        // 6) Update status if submitting
         if ($action === 'submit') {
-            $appraisal->updateStatus('submitted');
-            logActivity($_SESSION['user_id'], 'SUBMIT', 'appraisals', $appraisal->id, null, null, 
-                       'Submitted appraisal for review');
+            if (!$appraisal->updateStatus('submitted')) {
+                throw new Exception('Failed to update status to submitted.');
+            }
+            logActivity($_SESSION['user_id'], 'SUBMIT', 'appraisals', $appraisal_id, null, null, 'Submitted appraisal for review');
             redirect('../index.php', 'Appraisal submitted successfully! Your manager will be notified.', 'success');
         } else {
-            logActivity($_SESSION['user_id'], 'UPDATE', 'appraisals', $appraisal->id, null, null, 
-                       'Saved appraisal progress');
+            logActivity($_SESSION['user_id'], 'UPDATE', 'appraisals', $appraisal_id, null, null, 'Saved appraisal progress');
             redirect('continue.php', 'Progress saved successfully!', 'success');
         }
-        
     } catch (Exception $e) {
         error_log("Save appraisal error: " . $e->getMessage());
         redirect('continue.php', 'Failed to save. Please try again.', 'error');
     }
-    foreach ($_POST as $key => $value) {
-    if (strpos($key, 'manager_rating_') === 0) {
-        $question_id = str_replace('manager_rating_', '', $key);
-        $rating = !empty($value) ? intval($value) : null;
-        $comment_key = 'manager_comment_' . $question_id;
-        $comment = $_POST[$comment_key] ?? null;
-        
-        // Check if response exists
-        $check_query = "SELECT * FROM responses WHERE appraisal_id = ? AND question_id = ?";
-        $check_stmt = $db->prepare($check_query);
-        $check_stmt->execute([$appraisal_id, $question_id]);
-        $existing = $check_stmt->fetch();
-        
-        if ($existing) {
-            // Update existing
-            $query = "UPDATE responses SET manager_rating = ?, manager_comments = ? WHERE appraisal_id = ? AND question_id = ?";
-            $stmt = $db->prepare($query);
-            $stmt->execute([$rating, $comment, $appraisal_id, $question_id]);
-        } else {
-            // Insert new
-            $query = "INSERT INTO responses (appraisal_id, question_id, manager_rating, manager_comments) VALUES (?, ?, ?, ?)";
-            $stmt = $db->prepare($query);
-            $stmt->execute([$appraisal_id, $question_id, $rating, $comment]);
-        }
-    }
 }
-}
+
 ?>
 
 <div class="row">
@@ -128,6 +179,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         </div>
     </div>
 </div>
+
+
+
 
 <form method="POST" action="" id="appraisalForm">
     <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
@@ -179,20 +233,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <?php endforeach; ?>
             </div>
             
+            
+
             <div class="mt-4">
                 <label class="form-label"><strong>Overall Comments on Cultural Values</strong></label>
-                <textarea class="form-control" name="cultural_values_overall" rows="4"><?php 
-                    // Get existing cultural values overall comment
-                    $cultural_overall = '';
-                    foreach ($existing_responses as $qid => $resp) {
-                        if ($resp['employee_comments'] === 'Cultural Values Overall Comments') {
-                            $cultural_overall = $resp['employee_response'] ?? '';
-                            break;
-                        }
-                    }
-                    echo htmlspecialchars($cultural_overall);
-                    ?></textarea>
-                        </div>
+                <textarea class="form-control" 
+                        name="cultural_values_overall" 
+                        rows="4"
+                        placeholder="Share your overall thoughts on how you demonstrate these cultural values..."
+                ><?php 
+                    $cultural_overall = array_filter($existing_responses, function($resp) {
+                        return isset($resp['employee_comments']) && 
+                            $resp['employee_comments'] === 'Cultural Values Overall Comments';
+                    });
+                    echo htmlspecialchars(reset($cultural_overall)['employee_response'] ?? '');
+                ?></textarea>
+            </div>
             
             <?php else: ?>
             <!-- Regular questions -->
@@ -280,6 +336,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <textarea class="form-control mt-2" name="comment_<?php echo $question['id']; ?>" rows="2"
                                   placeholder="Comments (optional)..."><?php echo htmlspecialchars($existing_response['employee_comments'] ?? ''); ?></textarea>
                     <?php break;
+                    case 'display': ?>
+                        <div class="alert alert-secondary">
+                            <?php echo nl2br(htmlspecialchars($question['text'])); ?>
+                        </div>
+                        <?php if ($question['description']): ?>
+                            <div class="text-muted small mb-2">
+                                <?php echo nl2br(htmlspecialchars($question['description'])); ?>
+                            </div>
+                        <?php endif; ?>
+                    <?php break;
 
                     case 'checkbox': 
                         $options = $question['options'] ?? [];
@@ -351,7 +417,25 @@ document.addEventListener('DOMContentLoaded', function() {
         updateRatingValue(slider, displayId);
     });
 });
-
+// Add to your existing JavaScript
+document.getElementById('appraisalForm').addEventListener('submit', function(e) {
+    const requiredFields = this.querySelectorAll('[required]');
+    let hasError = false;
+    
+    requiredFields.forEach(field => {
+        if (!field.value.trim()) {
+            field.classList.add('is-invalid');
+            hasError = true;
+        } else {
+            field.classList.remove('is-invalid');
+        }
+    });
+    
+    if (hasError) {
+        e.preventDefault();
+        alert('Please fill in all required fields');
+    }
+});
 // Auto-save functionality
 let autoSaveTimer;
 document.getElementById('appraisalForm').addEventListener('input', function() {

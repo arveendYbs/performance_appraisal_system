@@ -41,7 +41,11 @@ try {
             $options = trim($_POST['options'] ?? '');
             $is_required = isset($_POST['is_required']) ? 1 : 0;
             $question_order = intval($_POST['question_order'] ?? 1);
-
+            // Modify this section to handle display type
+                if ($response_type === 'display') {
+                    $is_required = 0; // Force not required for display type
+                }
+                
             if (empty($question_text) || empty($response_type)) {
                 $error_message = 'Question text and response type are required.';
             } else {
@@ -209,7 +213,9 @@ function toggleOptions() {
     const responseType = document.getElementById('response_type').value;
     const optionsContainer = document.getElementById('options-container');
     const optionsField = document.getElementById('options');
+    const isRequiredContainer = document.querySelector('.form-check'); // Add this line
     
+    // Hide/show options container
     if (responseType === 'checkbox' || responseType === 'radio') {
         optionsContainer.style.display = 'block';
         optionsField.required = true;
@@ -217,8 +223,26 @@ function toggleOptions() {
         optionsContainer.style.display = 'none';
         optionsField.required = false;
     }
+    
+    // Handle display type
+    if (responseType === 'display') {
+        isRequiredContainer.style.display = 'none'; // Hide required checkbox for display type
+        document.getElementById('is_required').checked = false; // Uncheck required
+    } else {
+        isRequiredContainer.style.display = 'block'; // Show required checkbox for other types
+    }
 }
-
+// Add this after the existing toggleOptions() function
+document.getElementById('questionForm').addEventListener('submit', function(e) {
+    const responseType = document.getElementById('response_type').value;
+    const questionText = document.getElementById('question_text').value.trim();
+    
+    if (responseType === 'display' && !questionText) {
+        e.preventDefault();
+        alert('Please enter the text to display');
+        document.getElementById('question_text').focus();
+    }
+});
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     toggleOptions();

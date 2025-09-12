@@ -93,7 +93,82 @@ class Appraisal {
         return false;
     }
 
+/**
+     * Get ALL questions with responses for manager review
+     * This includes questions even if employee hasn't answered
+     */
+    public function getAllResponsesForReview() {
+        $query = "SELECT fq.id as question_id, fq.question_text, fq.response_type, fq.options,
+                         fs.section_title, fs.section_order, fq.question_order,
+                         r.employee_response, r.employee_rating, r.employee_comments,
+                         r.manager_response, r.manager_rating, r.manager_comments
+                  FROM form_questions fq
+                  JOIN form_sections fs ON fq.section_id = fs.id
+                  JOIN appraisals a ON fs.form_id = a.form_id
+                  LEFT JOIN responses r ON (fq.id = r.question_id AND r.appraisal_id = a.id)
+                  WHERE a.id = :appraisal_id
+                  ORDER BY fs.section_order, fq.question_order";
 
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':appraisal_id', $this->id);
+        $stmt->execute();
+
+        return $stmt;
+    }
+
+public function saveSectionComment($section_id, $comment) {
+    try {
+        // Check if comment exists
+        $check_query = "SELECT id FROM section_comments 
+                       WHERE appraisal_id = :appraisal_id 
+                       AND section_id = :section_id";
+        
+        $check_stmt = $this->conn->prepare($check_query);
+        $check_stmt->bindParam(':appraisal_id', $this->id);
+        $check_stmt->bindParam(':section_id', $section_id);
+        $check_stmt->execute();
+        
+        if ($check_stmt->rowCount() > 0) {
+            // Update existing comment
+            $query = "UPDATE section_comments 
+                     SET comment = :comment,
+                         updated_at = NOW()
+                     WHERE appraisal_id = :appraisal_id 
+                     AND section_id = :section_id";
+        } else {
+            // Insert new comment
+            $query = "INSERT INTO section_comments 
+                     (appraisal_id, section_id, comment, created_at)
+                     VALUES 
+                     (:appraisal_id, :section_id, :comment, NOW())";
+        }
+        
+        $stmt = $this->conn->prepare($query);
+        
+        // Bind parameters
+        $stmt->bindParam(':appraisal_id', $this->id);
+        $stmt->bindParam(':section_id', $section_id);
+        $stmt->bindParam(':comment', $comment);
+        
+        return $stmt->execute();
+        
+    } catch (Exception $e) {
+        error_log("Error saving section comment: " . $e->getMessage());
+        return false;
+    }
+}
+
+public function getSectionComments() {
+    $query = "SELECT * FROM section_comments 
+              WHERE appraisal_id = :appraisal_id";
+              
+    $stmt = $this->conn->prepare($query);
+    $stmt->bindParam(':appraisal_id', $this->id);
+    $stmt->execute();
+    
+    return $stmt;
+}
+    
     /**
      * Get pending appraisals for manager
      */
@@ -133,39 +208,43 @@ class Appraisal {
 
         return $stmt->execute();
     }
-
-    /**
-     * Save response
-     */
     public function saveResponse($question_id, $employee_response = null, $employee_rating = null, 
-                                $employee_comments = null, $manager_response = null, 
-                                $manager_rating = null, $manager_comments = null) {
-        
+                             $employee_comments = null, $manager_response = null, 
+                             $manager_rating = null, $manager_comments = null) {
+    try {
         $query = "INSERT INTO responses 
                   (appraisal_id, question_id, employee_response, employee_rating, 
                    employee_comments, manager_response, manager_rating, manager_comments)
                   VALUES (:appraisal_id, :question_id, :employee_response, :employee_rating,
                           :employee_comments, :manager_response, :manager_rating, :manager_comments)
                   ON DUPLICATE KEY UPDATE
-                  employee_response = COALESCE(VALUES(employee_response), employee_response),
-                  employee_rating = COALESCE(VALUES(employee_rating), employee_rating),
-                  employee_comments = COALESCE(VALUES(employee_comments), employee_comments),
-                  manager_response = COALESCE(VALUES(manager_response), manager_response),
-                  manager_rating = COALESCE(VALUES(manager_rating), manager_rating),
-                  manager_comments = COALESCE(VALUES(manager_comments), manager_comments)";
+                  employee_response = VALUES(employee_response),
+                  employee_rating = VALUES(employee_rating),
+                  employee_comments = VALUES(employee_comments),
+                  manager_response = VALUES(manager_response),
+                  manager_rating = VALUES(manager_rating),
+                  manager_comments = VALUES(manager_comments)";
 
         $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':appraisal_id', $this->id);
-        $stmt->bindParam(':question_id', $question_id);
-        $stmt->bindParam(':employee_response', $employee_response);
-        $stmt->bindParam(':employee_rating', $employee_rating);
-        $stmt->bindParam(':employee_comments', $employee_comments);
-        $stmt->bindParam(':manager_response', $manager_response);
-        $stmt->bindParam(':manager_rating', $manager_rating);
-        $stmt->bindParam(':manager_comments', $manager_comments);
+        $stmt->bindValue(':appraisal_id', $this->id, PDO::PARAM_INT);
+        $stmt->bindValue(':question_id', $question_id, PDO::PARAM_INT);
+        $stmt->bindValue(':employee_response', $employee_response);
+        $stmt->bindValue(':employee_rating', $employee_rating);
+        $stmt->bindValue(':employee_comments', $employee_comments);
+        $stmt->bindValue(':manager_response', $manager_response);
+        $stmt->bindValue(':manager_rating', $manager_rating);
+        $stmt->bindValue(':manager_comments', $manager_comments);
 
-        return $stmt->execute();
+        $ok = $stmt->execute();
+        if (!$ok) {
+            error_log("saveResponse SQL error: " . print_r($stmt->errorInfo(), true));
+        }
+        return $ok;
+    } catch (Exception $e) {
+        error_log("Error saving response: " . $e->getMessage());
+        return false;
     }
+}
 
     /**
      * Get appraisal responses

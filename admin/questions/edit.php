@@ -42,6 +42,11 @@ try {
             $is_required = isset($_POST['is_required']) ? 1 : 0;
             $question_order = intval($_POST['question_order'] ?? 1);
 
+
+                        // Force not required for display type
+            if ($response_type === 'display') {
+                $is_required = 0;
+            }
             if (empty($question_text) || empty($response_type)) {
                 $error_message = 'Question text and response type are required.';
             } else {
@@ -213,6 +218,12 @@ function toggleOptions() {
         optionsContainer.style.display = 'none';
         optionsField.required = false;
     }
+}
+if (responseType === 'display') {
+    document.querySelector('.form-check').style.display = 'none';
+    document.getElementById('is_required').checked = false;
+} else {
+    document.querySelector('.form-check').style.display = 'block';
 }
 
 // Initialize on page load

@@ -50,7 +50,16 @@ try {
     // Get existing responses
     $appraisal = new Appraisal($db);
     $appraisal->id = $appraisal_id;
-    $responses_stmt = $appraisal->getResponses();
+    $responses_stmt = $appraisal->getAllResponsesForReview(); //getResponse
+    
+    $responses = [];
+    while ($response = $responses_stmt->fetch(PDO::FETCH_ASSOC)) {
+        $responses[$response['question_id']] = $response;
+    }
+    // Get existing responses - FIXED VERSION
+    $appraisal = new Appraisal($db);
+    $appraisal->id = $appraisal_id;
+    $responses_stmt = $appraisal->getAllResponsesForReview(); // Use the new method
     
     $responses = [];
     while ($response = $responses_stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -61,32 +70,78 @@ try {
     error_log("Review appraisal error: " . $e->getMessage());
     redirect('pending.php', 'An error occurred. Please try again.', 'error');
 }
-
-foreach ($_POST as $key => $value) {
-    if (strpos($key, 'manager_rating_') === 0) {
-        $question_id = str_replace('manager_rating_', '', $key);
-        $rating = !empty($value) ? intval($value) : null;
-        $comment_key = 'manager_comment_' . $question_id;
-        $comment = $_POST[$comment_key] ?? null;
-        
-        // Check if response exists
-        $check_query = "SELECT * FROM responses WHERE appraisal_id = ? AND question_id = ?";
-        $check_stmt = $db->prepare($check_query);
-        $check_stmt->execute([$appraisal_id, $question_id]);
-        $existing = $check_stmt->fetch();
-        
-        if ($existing) {
-            // Update existing
-            $query = "UPDATE responses SET manager_rating = ?, manager_comments = ? WHERE appraisal_id = ? AND question_id = ?";
-            $stmt = $db->prepare($query);
-            $stmt->execute([$rating, $comment, $appraisal_id, $question_id]);
-        } else {
-            // Insert new
-            $query = "INSERT INTO responses (appraisal_id, question_id, manager_rating, manager_comments) VALUES (?, ?, ?, ?)";
-            $stmt = $db->prepare($query);
-            $stmt->execute([$appraisal_id, $question_id, $rating, $comment]);
-        }
+// Handle form submission for manager feedback
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+        redirect('review.php?id=' . $appraisal_id, 'Invalid request. Please try again.', 'error');
     }
+    
+    try {
+        // Save manager responses
+        foreach ($_POST as $key => $value) {
+            if (strpos($key, 'manager_rating_') === 0) {
+                $question_id = str_replace('manager_rating_', '', $key);
+                $rating = !empty($value) ? intval($value) : null;
+                $comment_key = 'manager_comment_' . $question_id;
+                $comment = $_POST[$comment_key] ?? null;
+                
+                // Check if response exists
+                $check_query = "SELECT * FROM responses WHERE appraisal_id = ? AND question_id = ?";
+                $check_stmt = $db->prepare($check_query);
+                $check_stmt->execute([$appraisal_id, $question_id]);
+                $existing = $check_stmt->fetch();
+                
+                if ($existing) {
+                    // Update existing
+                    $query = "UPDATE responses SET manager_rating = ?, manager_comments = ? 
+                             WHERE appraisal_id = ? AND question_id = ?";
+                    $stmt = $db->prepare($query);
+                    $stmt->execute([$rating, $comment, $appraisal_id, $question_id]);
+                } else {
+                    // Insert new
+                    $query = "INSERT INTO responses (appraisal_id, question_id, manager_rating, manager_comments) 
+                             VALUES (?, ?, ?, ?)";
+                    $stmt = $db->prepare($query);
+                    $stmt->execute([$appraisal_id, $question_id, $rating, $comment]);
+                }
+            }
+            // Handle standalone manager comments (for cultural values, etc.)
+            elseif (strpos($key, 'manager_comment_') === 0 && 
+                    !isset($_POST[str_replace('manager_comment_', 'manager_rating_', $key)])) {
+                $question_id = str_replace('manager_comment_', '', $key);
+                $comment = $value;
+                
+                if (!empty($comment)) {
+                    $check_query = "SELECT * FROM responses WHERE appraisal_id = ? AND question_id = ?";
+                    $check_stmt = $db->prepare($check_query);
+                    $check_stmt->execute([$appraisal_id, $question_id]);
+                    $existing = $check_stmt->fetch();
+                    
+                    if ($existing) {
+                        $query = "UPDATE responses SET manager_comments = ? 
+                                 WHERE appraisal_id = ? AND question_id = ?";
+                        $stmt = $db->prepare($query);
+                        $stmt->execute([$comment, $appraisal_id, $question_id]);
+                    } else {
+                        $query = "INSERT INTO responses (appraisal_id, question_id, manager_comments) 
+                                 VALUES (?, ?, ?)";
+                        $stmt = $db->prepare($query);
+                        $stmt->execute([$appraisal_id, $question_id, $comment]);
+                    }
+                }
+            }
+        }
+        
+        logActivity($_SESSION['user_id'], 'UPDATE', 'appraisals', $appraisal_id, null, null, 
+                   'Updated manager review for ' . $appraisal_data['employee_name']);
+        
+        redirect('review.php?id=' . $appraisal_id, 'Review progress saved successfully!', 'success');
+        
+    } catch (Exception $e) {
+        error_log("Save manager review error: " . $e->getMessage());
+        redirect('review.php?id=' . $appraisal_id, 'Failed to save review. Please try again.', 'error');
+    }
+
 }
 ?>
 
@@ -218,46 +273,47 @@ foreach ($_POST as $key => $value) {
                     <div class="employee-column">
                         <div class="column-header">Employee Response</div>
                         
-                        <?php if (in_array($question['response_type'], ['rating_5', 'rating_10'])): ?>
-                        <?php if ($response && $response['employee_rating'] !== null): ?>
-                        <div class="mb-2">
-                            <span class="badge bg-info me-2">Employee Rating: <?php echo $response['employee_rating']; ?></span>
-                            <span class="text-muted">
-                                <?php 
-                                $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10;
-                                $percentage = round(($response['employee_rating'] / $max_rating) * 100);
-                                echo "({$percentage}%)";
+                        <?php // Show employee rating if it exists ?>
+                        <?php if (in_array($question['response_type'], ['rating_5', 'rating_10']) && 
+                                isset($response['employee_rating']) && $response['employee_rating'] !== null): ?>
+                        <div class="mb-3 p-2 bg-info bg-opacity-10 rounded border-start border-info border-3">
+                            <strong>Employee Rating: </strong>
+                            <span class="badge bg-info fs-6"><?php echo $response['employee_rating']; ?></span>
+                            <?php 
+                            $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10;
+                            $percentage = round(($response['employee_rating'] / $max_rating) * 100);
+                            ?>
+                            <span class="text-muted">/ <?php echo $max_rating; ?> (<?php echo $percentage; ?>%)</span>
+                            
+                            <?php // Show rating description ?>
+                            <div class="small text-muted mt-1">
+                                <?php
+                                if ($question['response_type'] === 'rating_5') {
+                                    $descriptions = [1 => 'Poor', 2 => 'Below Average', 3 => 'Average', 4 => 'Good', 5 => 'Excellent'];
+                                    echo $descriptions[$response['employee_rating']] ?? '';
+                                } else {
+                                    if ($response['employee_rating'] == 0) echo 'Not Applicable';
+                                    elseif ($response['employee_rating'] <= 2) echo 'Poor';
+                                    elseif ($response['employee_rating'] <= 4) echo 'Below Average';
+                                    elseif ($response['employee_rating'] <= 6) echo 'Average';
+                                    elseif ($response['employee_rating'] <= 8) echo 'Good';
+                                    else echo 'Excellent';
+                                }
                                 ?>
-                            </span>
+                            </div>
                         </div>
                         <?php endif; ?>
-                        <?php endif; ?>
                         
-                        <?php if ($question['response_type'] === 'checkbox'): ?>
-                            <?php if ($response && $response['employee_response']): ?>
-                                <?php 
-                                $selected_options = explode(', ', $response['employee_response']);
-                                foreach ($selected_options as $option): 
-                                ?>
-                                <span class="badge bg-light text-dark me-1 mb-1"><?php echo htmlspecialchars($option); ?></span>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <em class="text-muted">No options selected</em>
+                        <?php // Show employee response text ?>
+                        <?php if ($response['employee_response'] || $response['employee_comments']): ?>
+                            <?php if ($response['employee_response']): ?>
+                                <div class="mb-2"><?php echo nl2br(htmlspecialchars($response['employee_response'])); ?></div>
                             <?php endif; ?>
-                        <?php elseif ($question['response_type'] === 'display'): ?>
-                            <div class="alert alert-light">
-                                <i class="bi bi-info-circle me-2"></i>
-                                <?php echo nl2br(htmlspecialchars($question['text'])); ?>
-                            </div>
+                            <?php if ($response['employee_comments']): ?>
+                                <small><strong>Comments:</strong> <?php echo nl2br(htmlspecialchars($response['employee_comments'])); ?></small>
+                            <?php endif; ?>
                         <?php else: ?>
-                            <?php if ($response && ($response['employee_response'] || $response['employee_comments'])): ?>
-                                <?php if ($response['employee_response']): ?>
-                                    <div class="mb-2"><?php echo nl2br(htmlspecialchars($response['employee_response'])); ?></div>
-                                <?php endif; ?>
-                                <?php if ($response['employee_comments']): ?>
-                                    <small><strong>Comments:</strong> <?php echo nl2br(htmlspecialchars($response['employee_comments'])); ?></small>
-                                <?php endif; ?>
-                            <?php else: ?>
+                            <?php if (!isset($response['employee_rating']) || $response['employee_rating'] === null): ?>
                                 <em class="text-muted">No response provided</em>
                             <?php endif; ?>
                         <?php endif; ?>

@@ -263,6 +263,7 @@ document.addEventListener('DOMContentLoaded', function() {
     password.addEventListener('input', validatePasswords);
     confirmPassword.addEventListener('input', validatePasswords);
 });
+
 </script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
