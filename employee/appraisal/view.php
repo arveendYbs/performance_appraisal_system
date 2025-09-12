@@ -138,57 +138,71 @@ try {
         <?php endif; ?>
     </div>
     <div class="card-body">
-        <?php if ($section['title'] === 'Cultural Values'): ?>
-        <!-- Cultural Values Display -->
-        <div class="row">
-            <?php
-            $cultural_values = [
-                ['code' => 'H', 'title' => 'Hard Work', 'desc' => 'Commitment to diligence and perseverance in all aspects of Operations'],
-                ['code' => 'H', 'title' => 'Honesty', 'desc' => 'Integrity in dealings with customers, partners and stakeholders'],
-                ['code' => 'H', 'title' => 'Harmony', 'desc' => 'Fostering Collaborative relationships and a balanced work environment'],
-                ['code' => 'C', 'title' => 'Customer Focus', 'desc' => 'Striving to be the "Only Supplier of Choice" by enhancing customer competitiveness'],
-                ['code' => 'I', 'title' => 'Innovation', 'desc' => 'Embracing transformation and agility, as symbolized by their "Evolving with Momentum" theme'],
-                ['code' => 'S', 'title' => 'Sustainability', 'desc' => 'Rooted in organic growth and long-term value creation, reflected in their visual metaphors']
-            ];
+      <?php if ($section['title'] === 'Cultural Values'): ?>
+    <!-- Cultural Values section -->
+    <div class="row">
+        <?php foreach ($section['questions'] as $question): 
+            $question_id = $question['id'];
+            $existing_response = $responses[$question_id] ?? [];
+            $response_value = $existing_response['employee_response'] ?? '';
             
-            foreach ($cultural_values as $cv_index => $cv): 
-                $question_id = $section['questions'][$cv_index]['id'] ?? null;
-                $response = $responses[$question_id] ?? null;
-            ?>
-            <div class="col-md-6 mb-4">
-                <div class="border rounded p-3">
-                    <div class="d-flex align-items-center mb-2">
-                        <span class="badge bg-primary me-2" style="width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">
-                            <?php echo $cv['code']; ?>
-                        </span>
-                        <strong><?php echo $cv['title']; ?></strong>
-                    </div>
-                    <p class="small text-muted mb-3"><?php echo $cv['desc']; ?></p>
-                    
-                    <div class="mb-3">
-                        <h6>Your Response:</h6>
-                        <div class="bg-light p-2 rounded">
-                            <?php if ($response && $response['employee_comments']): ?>
-                                <?php echo nl2br(htmlspecialchars($response['employee_comments'])); ?>
-                            <?php else: ?>
-                                <em class="text-muted">No response provided</em>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                    
-                    <?php if ($response && $response['manager_comments']): ?>
-                    <div>
-                        <h6>Manager's Feedback:</h6>
-                        <div class="bg-success bg-opacity-10 p-2 rounded border-start border-success border-3">
-                            <?php echo nl2br(htmlspecialchars($response['manager_comments'])); ?>
-                        </div>
-                    </div>
+            // Skip overall comments question - it will be shown at the bottom
+            if (stripos($question['text'], 'Overall Comments') !== false) continue;
+        ?>
+        <div class="col-md-6 mb-4">
+            <div class="border rounded p-3 h-100">
+                <div class="d-flex align-items-center mb-2">
+                    <?php
+                    $parts = explode(' - ', $question['text']);
+                    $code = $parts[0] ?? '';
+                    $title = $parts[1] ?? $question['text'];
+                    ?>
+                    <span class="badge bg-primary me-2" style="width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">
+                        <?php echo htmlspecialchars($code); ?>
+                    </span>
+                    <strong><?php echo htmlspecialchars($title); ?></strong>
+                </div>
+                
+                <p class="small text-muted mb-3">
+                    <?php echo htmlspecialchars($question['description'] ?? ''); ?>
+                </p>
+                
+                <div class="response-text border-start border-primary border-3 ps-3 mt-3">
+                    <?php if (!empty($response_value)): ?>
+                        <?php echo nl2br(htmlspecialchars($response_value)); ?>
+                    <?php else: ?>
+                        <em class="text-muted">No response provided</em>
                     <?php endif; ?>
                 </div>
             </div>
-            <?php endforeach; ?>
         </div>
-        
+        <?php endforeach; ?>
+    </div>
+
+    <!-- Overall Comments -->
+    <?php
+    // Find the overall comments question
+    $overall_question = array_filter($section['questions'], function($q) {
+        return stripos($q['text'], 'Overall Comments') !== false;
+    });
+    $overall_question = reset($overall_question);
+    
+    if ($overall_question):
+        $overall_id = $overall_question['id'];
+        $overall_response = $responses[$overall_id] ?? [];
+        $overall_value = $overall_response['employee_response'] ?? '';
+    ?>
+    <div class="mt-4">
+        <h5 class="mb-3">Overall Comments on Cultural Values</h5>
+        <div class="response-text border-start border-primary border-3 ps-3">
+            <?php if (!empty($overall_value)): ?>
+                <?php echo nl2br(htmlspecialchars($overall_value)); ?>
+            <?php else: ?>
+                <em class="text-muted">No overall comments provided</em>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endif; ?>
         <?php else: ?>
         <!-- Regular Questions Display -->
         <?php foreach ($section['questions'] as $question): 

@@ -214,53 +214,54 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <?php if ($section['title'] === 'Cultural Values'): ?>
             <!-- Cultural Values Review -->
             <div class="row">
-                <?php
-                $cultural_values = [
-                    ['code' => 'H', 'title' => 'Hard Work', 'desc' => 'Commitment to diligence and perseverance in all aspects of Operations'],
-                    ['code' => 'H', 'title' => 'Honesty', 'desc' => 'Integrity in dealings with customers, partners and stakeholders'],
-                    ['code' => 'H', 'title' => 'Harmony', 'desc' => 'Fostering Collaborative relationships and a balanced work environment'],
-                    ['code' => 'C', 'title' => 'Customer Focus', 'desc' => 'Striving to be the "Only Supplier of Choice" by enhancing customer competitiveness'],
-                    ['code' => 'I', 'title' => 'Innovation', 'desc' => 'Embracing transformation and agility, as symbolized by their "Evolving with Momentum" theme'],
-                    ['code' => 'S', 'title' => 'Sustainability', 'desc' => 'Rooted in organic growth and long-term value creation, reflected in their visual metaphors']
-                ];
-                
-                foreach ($cultural_values as $cv_index => $cv): 
-                    $question_id = $section['questions'][$cv_index]['id'] ?? null;
-                    $response = $responses[$question_id] ?? null;
-                ?>
-                <div class="col-md-6 mb-4">
-                    <div class="border rounded p-3">
-                        <div class="d-flex align-items-center mb-2">
-                            <span class="badge bg-primary me-2" style="width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">
-                                <?php echo $cv['code']; ?>
-                            </span>
-                            <strong><?php echo $cv['title']; ?></strong>
-                        </div>
-                        <p class="small text-muted mb-3"><?php echo $cv['desc']; ?></p>
-                        
-                        <div class="review-layout">
-                            <div class="employee-column">
-                                <div class="column-header">Employee Response</div>
-                                <?php if ($response && $response['employee_comments']): ?>
-                                    <?php echo nl2br(htmlspecialchars($response['employee_comments'])); ?>
-                                <?php else: ?>
-                                    <em class="text-muted">No response provided</em>
-                                <?php endif; ?>
-                            </div>
-                            
-                            <div class="manager-column">
-                                <div class="column-header">Manager Feedback</div>
-                                <?php if ($question_id): ?>
-                                <textarea class="form-control" name="manager_comment_<?php echo $question_id; ?>" rows="3"
-                                          placeholder="Provide your feedback on this cultural value..."><?php echo htmlspecialchars($response['manager_comments'] ?? ''); ?></textarea>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <?php endforeach; ?>
-            </div>
+   <?php 
+   foreach ($section['questions'] as $question): 
+    $question_id = $question['id'];
+    $response = $responses[$question_id] ?? [];
+    $response_type = $question['response_type'] ?? '';
+?>
+<div class="mb-4 pb-4 border-bottom">
+    <h6 class="fw-bold mb-3"><?php echo htmlspecialchars($question['text']); ?></h6>
+    
+    <div class="review-layout">
+        <div class="employee-column">
+            <div class="column-header">Employee Response</div>
             
+            <?php if ($question['response_type'] === 'display'): ?>
+                <!-- Display-only content -->
+                <div class="form-control-plaintext">
+                    <?php echo nl2br(htmlspecialchars($question['description'])); ?>
+                </div>
+            <?php else: ?>
+                <?php // Show employee response text ?>
+                <?php if ($response['employee_response'] || $response['employee_comments']): ?>
+                    <?php if ($response['employee_response']): ?>
+                        <div class="mb-2"><?php echo nl2br(htmlspecialchars($response['employee_response'])); ?></div>
+                    <?php endif; ?>
+                    <?php if ($response['employee_comments']): ?>
+                        <small><strong>Comments:</strong> <?php echo nl2br(htmlspecialchars($response['employee_comments'])); ?></small>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <em class="text-muted">No response provided</em>
+                <?php endif; ?>
+            <?php endif; ?>
+        </div>
+        
+        <div class="manager-column">
+            <div class="column-header">Manager Feedback</div>
+            <?php if ($response_type !== 'display' && $question_id): ?>
+                <textarea class="form-control" 
+                        name="manager_comment_<?php echo $question_id; ?>" 
+                        rows="3"
+                        placeholder="Provide your feedback on this cultural value..."
+                ><?php echo htmlspecialchars($response['manager_comments'] ?? ''); ?></textarea>
+            <?php else: ?>
+                <em class="text-muted">No feedback required for display-only content</em>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
+<?php endforeach; ?>
             <?php else: ?>
             <!-- Performance Assessment and Other Sections -->
             <?php foreach ($section['questions'] as $question): 
@@ -277,7 +278,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <?php if (in_array($question['response_type'], ['rating_5', 'rating_10']) && 
                                 isset($response['employee_rating']) && $response['employee_rating'] !== null): ?>
                         <div class="mb-3 p-2 bg-info bg-opacity-10 rounded border-start border-info border-3">
-                            <strong>Employee Rating: </strong>
+                            <strong>Employee Score: </strong>
                             <span class="badge bg-info fs-6"><?php echo $response['employee_rating']; ?></span>
                             <?php 
                             $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10;

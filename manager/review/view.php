@@ -207,12 +207,12 @@ try {
                 <h6>Performance Statistics</h6>
                 <?php if ($performance_stats['total_questions'] > 0): ?>
                 <small>
-                    <strong>Avg Employee Rating:</strong> <?php echo $performance_stats['average_employee_rating']; ?><br>
-                    <strong>Avg Manager Rating:</strong> <?php echo $performance_stats['average_manager_rating']; ?><br>
+                    <strong>Avg Employee Score:</strong> <?php echo $performance_stats['average_employee_rating']; ?><br>
+                    <strong>Avg Manager Score:</strong> <?php echo $performance_stats['average_manager_rating']; ?><br>
                     <strong>Questions Answered:</strong> <?php echo $performance_stats['answered_questions']; ?>/<?php echo $performance_stats['total_questions']; ?>
                 </small>
                 <?php else: ?>
-                <small class="text-muted">No performance ratings available</small>
+                <small class="text-muted">No performance scores available</small>
                 <?php endif; ?>
             </div>
         </div>
@@ -236,51 +236,68 @@ try {
         <!-- Cultural Values Display -->
         <div class="row">
             <?php
-            $cultural_values = [
-                ['code' => 'H', 'title' => 'Hard Work', 'desc' => 'Commitment to diligence and perseverance in all aspects of Operations'],
-                ['code' => 'H', 'title' => 'Honesty', 'desc' => 'Integrity in dealings with customers, partners and stakeholders'],
-                ['code' => 'H', 'title' => 'Harmony', 'desc' => 'Fostering Collaborative relationships and a balanced work environment'],
-                ['code' => 'C', 'title' => 'Customer Focus', 'desc' => 'Striving to be the "Only Supplier of Choice" by enhancing customer competitiveness'],
-                ['code' => 'I', 'title' => 'Innovation', 'desc' => 'Embracing transformation and agility, as symbolized by their "Evolving with Momentum" theme'],
-                ['code' => 'S', 'title' => 'Sustainability', 'desc' => 'Rooted in organic growth and long-term value creation, reflected in their visual metaphors']
-            ];
+foreach ($section['questions'] as $question): 
+    $question_id = $question['id'] ?? 0;
+    $response = $responses[$question_id] ?? [];
+    $employee_response = $response['employee_response'] ?? '';
+    $employee_comments = $response['employee_comments'] ?? '';
+    $manager_rating = $response['manager_rating'] ?? null;
+    $manager_comments = $response['manager_comments'] ?? '';
+?>
+<div class="mb-4 pb-4 border-bottom">
+    <h6 class="fw-bold mb-3"><?php echo htmlspecialchars($question['text'] ?? ''); ?></h6>
+    
+    <div class="review-layout">
+        <div class="employee-column">
+            <div class="column-header">Employee Response</div>
             
-            foreach ($cultural_values as $cv_index => $cv): 
-                $question_id = $section['questions'][$cv_index]['id'] ?? null;
-                $response = $responses[$question_id] ?? null;
-            ?>
-            <div class="col-md-6 mb-4">
-                <div class="border rounded p-3">
-                    <div class="d-flex align-items-center mb-2">
-                        <span class="badge bg-primary me-2" style="width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">
-                            <?php echo $cv['code']; ?>
-                        </span>
-                        <strong><?php echo $cv['title']; ?></strong>
-                    </div>
-                    <p class="small text-muted mb-3"><?php echo $cv['desc']; ?></p>
-                    
-                    <div class="review-layout">
-                        <div class="employee-column">
-                            <div class="column-header">Employee Response</div>
-                            <?php if ($response && $response['employee_comments']): ?>
-                                <?php echo nl2br(htmlspecialchars($response['employee_comments'])); ?>
-                            <?php else: ?>
-                                <em class="text-muted">No response provided</em>
-                            <?php endif; ?>
-                        </div>
-                        
-                        <?php if ($response && $response['manager_comments']): ?>
-                        <div class="manager-column">
-                            <div class="column-header">Manager Feedback</div>
-                            <?php echo nl2br(htmlspecialchars($response['manager_comments'])); ?>
-                        </div>
-                        <?php endif; ?>
-                    </div>
+            <?php if (($question['response_type'] ?? '') === 'display'): ?>
+                <!-- Display-only content -->
+                <div class="form-control-plaintext">
+                    <?php echo nl2br(htmlspecialchars($question['description'] ?? '')); ?>
                 </div>
-            </div>
-            <?php endforeach; ?>
+            <?php else: ?>
+                <?php if ($employee_response || $employee_comments): ?>
+                    <?php if ($employee_response): ?>
+                        <div class="mb-2"><?php echo nl2br(htmlspecialchars($employee_response)); ?></div>
+                    <?php endif; ?>
+                    <?php if ($employee_comments): ?>
+                        <small><strong>Comments:</strong> <?php echo nl2br(htmlspecialchars($employee_comments)); ?></small>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <em class="text-muted">No response provided</em>
+                <?php endif; ?>
+            <?php endif; ?>
         </div>
         
+        <div class="manager-column">
+            <div class="column-header">Manager Assessment</div>
+            <?php if (($question['response_type'] ?? '') !== 'display'): ?>
+                <?php if ($manager_rating !== null || !empty($manager_comments)): ?>
+                    <?php if ($manager_rating !== null): ?>
+                        <div class="mb-3 p-2 bg-primary bg-opacity-10 rounded border-start border-primary border-3">
+                            <strong>Manager Score: </strong>
+                            <span class="badge bg-primary fs-6"><?php echo $manager_rating; ?></span>
+                            <?php 
+                            $max_rating = ($question['response_type'] ?? '') === 'rating_5' ? 5 : 10;
+                            $percentage = $max_rating > 0 ? round(($manager_rating / $max_rating) * 100) : 0;
+                            ?>
+                            <span class="text-muted">/ <?php echo $max_rating; ?> (<?php echo $percentage; ?>%)</span>
+                        </div>
+                    <?php endif; ?>
+                    <?php if (!empty($manager_comments)): ?>
+                        <?php echo nl2br(htmlspecialchars($manager_comments)); ?>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <em class="text-muted">No assessment provided</em>
+                <?php endif; ?>
+            <?php else: ?>
+                <em class="text-muted">No assessment required for display-only content</em>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
+<?php endforeach; ?>
         <?php else: ?>
         <!-- Regular Questions Display -->
         <?php foreach ($section['questions'] as $question): 

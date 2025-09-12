@@ -198,72 +198,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
         </div>
         <div class="card-body">
-          <?php
-// Replace the existing Cultural Values section with this:
-if ($section['title'] === 'Cultural Values'): ?>
-    <!-- Cultural Values section -->
-    <div class="row">
-        <?php foreach ($section['questions'] as $question): 
-    // Initialize variables at the start of the loop
-    $question_id = $question['id'];
-    $existing_response = $existing_responses[$question_id] ?? [];
-    $response_value = $existing_response['employee_response'] ?? '';
-?>
-    <div class="mb-4">
-        <label class="form-label">
-            <?php echo htmlspecialchars($question['text']); ?>
-            <?php if ($question['is_required']): ?>
-                <span class="text-danger">*</span>
-            <?php endif; ?>
-        </label>
-        
-        <?php if ($question['response_type'] === 'display'): ?>
-            <!-- Display-only content -->
-            <div class="form-control bg-light" style="min-height: 60px;">
-                <?php echo nl2br(htmlspecialchars($question['description'])); ?>
+            <?php if ($section['title'] === 'Cultural Values'): ?>
+            <!-- Special handling for Cultural Values section -->
+            <div class="row">
+                <?php
+             
+               $cultural_values = [
+                    ['code' => 'H', 'title' => 'Hard Work', 'desc' => 'Commitment to diligence and perseverance in all aspects of Operations'],
+                    ['code' => 'H', 'title' => 'Honesty', 'desc' => 'Integrity in dealings with customers, partners and stakeholders'],
+                    ['code' => 'H', 'title' => 'Harmony', 'desc' => 'Fostering Collaborative relationships and a balanced work environment'],
+                    ['code' => 'C', 'title' => 'Customer Focus', 'desc' => 'Striving to be the "Only Supplier of Choice" by enhancing customer competitiveness'],
+                    ['code' => 'I', 'title' => 'Innovation', 'desc' => 'Embracing transformation and agility, as symbolized by their "Evolving with Momentum" theme'],
+                    ['code' => 'S', 'title' => 'Sustainability', 'desc' => 'Rooted in organic growth and long-term value creation, reflected in their visual metaphors']
+                ];
+                
+                foreach ($cultural_values as $cv_index => $cv): 
+                    $question_id = $section['questions'][$cv_index]['id'] ?? null;
+                    $existing_response = $existing_responses[$question_id] ?? null;
+                ?>
+                <div class="col-md-6 mb-4">
+                    <div class="border rounded p-3 h-100">
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="badge bg-primary me-2" style="width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">
+                                <?php echo $cv['code']; ?>
+                            </span>
+                            <strong><?php echo $cv['title']; ?></strong>
+                        </div>
+                        <p class="small text-muted mb-3"><?php echo $cv['desc']; ?></p>
+                        <?php if ($question_id): ?>
+                        <textarea class="form-control" name="comment_<?php echo $question_id; ?>" rows="3"
+                                  placeholder="Share your thoughts and examples on this cultural value..."><?php echo htmlspecialchars($existing_response['employee_comments'] ?? ''); ?></textarea>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endforeach; ?>
             </div>
-        <?php else: ?>
-            <!-- Regular input fields -->
-            <?php if ($question['response_type'] === 'textarea'): ?>
-                <textarea class="form-control" 
-                        name="question_<?php echo $question_id; ?>" 
-                        rows="3"
-                        <?php echo $question['is_required'] ? 'required' : ''; ?>
-                ><?php echo htmlspecialchars($response_value); ?></textarea>
-            <?php elseif ($question['response_type'] === 'text'): ?>
-                <input type="text" 
-                       class="form-control"
-                       name="question_<?php echo $question_id; ?>"
-                       value="<?php echo htmlspecialchars($response_value); ?>"
-                       <?php echo $question['is_required'] ? 'required' : ''; ?>>
-            <?php endif; ?>
-        <?php endif; ?>
-    </div>
-<?php endforeach; ?>
+            
+            
 
-    <!-- Overall Comments -->
-    <?php
-    // Find the overall comments question
-    $overall_question = array_filter($section['questions'], function($q) {
-        return $q['text'] === 'Overall Comments';
-    });
-    $overall_question = reset($overall_question);
-    if ($overall_question):
-        $existing_overall = $existing_responses[$overall_question['id']] ?? null;
-    ?>
-    <div class="mt-4">
-        <label class="form-label"><strong>Overall Comments on Cultural Values</strong></label>
-        <textarea class="form-control" 
-                name="question_<?php echo $overall_question['id']; ?>" 
-                rows="4"
-                placeholder="Share your overall thoughts on how you demonstrate these cultural values..."
-                <?php echo $overall_question['is_required'] ? 'required' : ''; ?>
-        ><?php echo htmlspecialchars($existing_overall['employee_response'] ?? ''); ?></textarea>
-    </div>
-    <?php endif; ?>
-<?php else: ?>
-    <!-- Regular questions section remains the same -->
-        
+            <div class="mt-4">
+                <label class="form-label"><strong>Overall Comments on Cultural Values</strong></label>
+                <textarea class="form-control" 
+                        name="cultural_values_overall" 
+                        rows="4"
+                        placeholder="Share your overall thoughts on how you demonstrate these cultural values..."
+                ><?php 
+                    $cultural_overall = array_filter($existing_responses, function($resp) {
+                        return isset($resp['employee_comments']) && 
+                            $resp['employee_comments'] === 'Cultural Values Overall Comments';
+                    });
+                    echo htmlspecialchars(reset($cultural_overall)['employee_response'] ?? '');
+                ?></textarea>
+            </div>
+            
+            <?php else: ?>
             <!-- Regular questions -->
             <?php foreach ($section['questions'] as $question): 
                 $existing_response = $existing_responses[$question['id']] ?? null;
