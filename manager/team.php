@@ -105,7 +105,7 @@ try {
                                 </td>
                                 <td>
                                     <?php if ($member['grade']): ?>
-                                    <span class="badge bg-secondary <?php echo getGradeColorClass($member['grade']); ?>">
+                                    <span class="badge bg-light <?php echo getGradeColorClass($member['grade']); ?>">
                                         <?php echo $member['grade']; ?>
                                     </span>
                                     <?php if ($member['total_score']): ?>
@@ -187,6 +187,7 @@ try {
 </div>
 
 <script>
+// Replace the existing viewPerformanceHistory function
 function viewPerformanceHistory(userId) {
     const modal = new bootstrap.Modal(document.getElementById('performanceModal'));
     const content = document.getElementById('performanceContent');
@@ -198,23 +199,36 @@ function viewPerformanceHistory(userId) {
     
     // Fetch performance history
     fetch('<?php echo BASE_URL; ?>/api/performance_history.php?user_id=' + userId)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
-                let html = '<h6>' + data.user.name + ' - Performance History</h6>';
+                let html = '<h6 class="mb-3">' + data.user.name + ' - Performance History</h6>';
                 
                 if (data.appraisals.length === 0) {
-                    html += '<p class="text-muted">No appraisal history found.</p>';
+                    html += '<div class="alert alert-info">No appraisal history found.</div>';
                 } else {
-                    html += '<div class="table-responsive"><table class="table table-sm">';
+                    html += '<div class="table-responsive"><table class="table table-sm table-hover">';
                     html += '<thead><tr><th>Period</th><th>Grade</th><th>Score</th><th>Status</th></tr></thead><tbody>';
                     
                     data.appraisals.forEach(function(appraisal) {
+                        const statusClass = {
+                            'completed': 'success',
+                            'submitted': 'warning',
+                            'in_review': 'info',
+                            'draft': 'secondary'
+                        }[appraisal.status] || 'secondary';
+                        
                         html += '<tr>';
                         html += '<td>' + appraisal.period + '</td>';
                         html += '<td>' + (appraisal.grade || '-') + '</td>';
                         html += '<td>' + (appraisal.total_score ? appraisal.total_score + '%' : '-') + '</td>';
-                        html += '<td><span class="badge bg-' + (appraisal.status === 'completed' ? 'success' : 'secondary') + '">' + appraisal.status + '</span></td>';
+                        html += '<td><span class="badge bg-' + statusClass + '">' + 
+                               (appraisal.status || '').replace('_', ' ') + '</span></td>';
                         html += '</tr>';
                     });
                     
@@ -223,12 +237,14 @@ function viewPerformanceHistory(userId) {
                 
                 content.innerHTML = html;
             } else {
-                content.innerHTML = '<div class="alert alert-danger">Failed to load performance history.</div>';
+                throw new Error(data.message || 'Failed to load performance history');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            content.innerHTML = '<div class="alert alert-danger">An error occurred while loading data.</div>';
+            content.innerHTML = '<div class="alert alert-danger">' + 
+                              '<i class="bi bi-exclamation-triangle me-2"></i>' +
+                              'Error loading performance history: ' + error.message + '</div>';
         });
 }
 </script>

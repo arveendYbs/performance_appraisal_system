@@ -167,7 +167,7 @@ try {
                 <h6>Performance Summary</h6>
                 <?php if ($appraisal_data['grade']): ?>
                 <p>
-                    <span class="badge bg-secondary <?php echo getGradeColorClass($appraisal_data['grade']); ?> fs-6">
+                    <span class="badge bg-light <?php echo getGradeColorClass($appraisal_data['grade']); ?> fs-6">
                         Grade: <?php echo $appraisal_data['grade']; ?>
                     </span><br>
                     <?php if ($appraisal_data['total_score']): ?>
