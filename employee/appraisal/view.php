@@ -220,13 +220,13 @@ try {
                     <div class="mb-2">
                         <span class="badge bg-primary me-2">Rating: <?php echo $response['employee_rating']; ?></span>
                         <span class="text-muted">
-                            <?php 
+                           <!--  <?php 
                             $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10;
                             $stars = round(($response['employee_rating'] / $max_rating) * 5);
                             for ($i = 1; $i <= 5; $i++) {
                                 echo $i <= $stars ? '<i class="bi bi-star-fill text-warning"></i>' : '<i class="bi bi-star text-muted"></i>';
                             }
-                            ?>
+                            ?> -->
                         </span>
                     </div>
                     <?php endif; ?>
@@ -267,13 +267,13 @@ try {
                         <div class="mb-2">
                             <span class="badge bg-success me-2">Rating: <?php echo $response['manager_rating']; ?></span>
                             <span class="text-muted">
-                                <?php 
+                              <!--   <?php 
                                 $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10;
                                 $stars = round(($response['manager_rating'] / $max_rating) * 5);
                                 for ($i = 1; $i <= 5; $i++) {
                                     echo $i <= $stars ? '<i class="bi bi-star-fill text-warning"></i>' : '<i class="bi bi-star text-muted"></i>';
                                 }
-                                ?>
+                                ?> -->
                             </span>
                         </div>
                         <?php endif; ?>

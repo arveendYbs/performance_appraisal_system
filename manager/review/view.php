@@ -317,15 +317,15 @@ foreach ($section['questions'] as $question):
                     <?php if (in_array($question['response_type'], ['rating_5', 'rating_10'])): ?>
                     <?php if ($response && $response['employee_rating'] !== null): ?>
                     <div class="mb-2">
-                        <span class="badge bg-info me-2">Rating: <?php echo $response['employee_rating']; ?></span>
+                        <span class="badge bg-info me-2">Score: <?php echo $response['employee_rating']; ?></span>
                         <span class="text-muted">
-                            <?php 
+                            <!-- <?php 
                             $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10;
                             $stars = round(($response['employee_rating'] / $max_rating) * 5);
                             for ($i = 1; $i <= 5; $i++) {
                                 echo $i <= $stars ? '<i class="bi bi-star-fill text-warning"></i>' : '<i class="bi bi-star text-muted"></i>';
                             }
-                            ?>
+                            ?> -->
                             (<?php echo round(($response['employee_rating'] / $max_rating) * 100); ?>%)
                         </span>
                     </div>
@@ -363,15 +363,15 @@ foreach ($section['questions'] as $question):
                     <?php if ($response && ($response['manager_rating'] !== null || $response['manager_comments'] || $response['manager_response'])): ?>
                         <?php if ($response['manager_rating'] !== null): ?>
                         <div class="mb-2">
-                            <span class="badge bg-success me-2">Rating: <?php echo $response['manager_rating']; ?></span>
+                            <span class="badge bg-success me-2">Score: <?php echo $response['manager_rating']; ?></span>
                             <span class="text-muted">
-                                <?php 
+                               <!-- <?php 
                                 $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10;
                                 $stars = round(($response['manager_rating'] / $max_rating) * 5);
                                 for ($i = 1; $i <= 5; $i++) {
                                     echo $i <= $stars ? '<i class="bi bi-star-fill text-warning"></i>' : '<i class="bi bi-star text-muted"></i>';
                                 }
-                                ?>
+                                ?>  -->
                                 (<?php echo round(($response['manager_rating'] / $max_rating) * 100); ?>%)
                             </span>
                         </div>

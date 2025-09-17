@@ -450,7 +450,7 @@ document.getElementById('appraisalForm').addEventListener('submit', function(e) 
     }
 });
 // Auto-save functionality
-let autoSaveTimer;
+/* let autoSaveTimer;
 document.getElementById('appraisalForm').addEventListener('input', function() {
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(function() {
@@ -471,13 +471,32 @@ document.getElementById('appraisalForm').addEventListener('input', function() {
             console.error('Auto-save failed:', error);
         });
     }, 30000); // Auto-save after 30 seconds of inactivity
+}); */
+let autoSaveTimer;
+document.getElementById('appraisalForm').addEventListener('input', function() {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(function() {
+        const formData = new FormData(document.getElementById('appraisalForm'));
+        
+        fetch('continue.php?id=<?php echo $appraisal_id; ?>', {
+            method: 'POST',
+            body: formData
+        }).then(response => {
+            if (response.ok) {
+                console.log('Auto-saved successfully');
+                showAutoSaveIndicator();
+            }
+        }).catch(error => {
+            console.error('Auto-save failed:', error);
+        });
+    }, 30000);
 });
 
 function showAutoSaveIndicator() {
     const indicator = document.createElement('div');
     indicator.className = 'alert alert-success position-fixed';
     indicator.style.cssText = 'top: 80px; right: 20px; z-index: 9999; opacity: 0.9;';
-    indicator.innerHTML = '<i class="bi bi-check-circle me-2"></i>Auto-saved';
+    indicator.innerHTML = '<i class="bi bi-check-circle me-2"></i>Appraisal auto-saved';
     document.body.appendChild(indicator);
     
     setTimeout(() => {

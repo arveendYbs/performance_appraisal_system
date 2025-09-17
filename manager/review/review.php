@@ -329,10 +329,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         
                         <?php if (in_array($question['response_type'], ['rating_5', 'rating_10'])): ?>
                         <div class="mb-3">
-                            <label class="form-label">Your Rating</label>
+                            <label class="form-label">Your Score</label>
                             <?php $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10; ?>
                             <select class="form-select" name="manager_rating_<?php echo $question['id']; ?>" id="manager_rating_<?php echo $question['id']; ?>">
-                                <option value="">Select rating...</option>
+                                <option value="">Select score...</option>
                                 <?php if ($question['response_type'] === 'rating_5'): ?>
                                     <option value="1" <?php echo ($response['manager_rating'] ?? '') == '1' ? 'selected' : ''; ?>>1 - Poor</option>
                                     <option value="2" <?php echo ($response['manager_rating'] ?? '') == '2' ? 'selected' : ''; ?>>2 - Below Average</option>
@@ -401,13 +401,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 </form>
 
 <script>
-// Initialize rating displays
+/* // Initialize rating displays
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('input[type="range"]').forEach(function(slider) {
         const displayId = slider.getAttribute('oninput').match(/'([^']+)'/)[1];
         updateRatingValue(slider, displayId);
     });
-});
+}); */
 
 // Auto-save functionality
 let autoSaveTimer;
