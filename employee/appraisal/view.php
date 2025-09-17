@@ -94,7 +94,7 @@ try {
             <div class="col-md-3">
                 <h6>Grade</h6>
                 <p>
-                    <span class="badge bg-secondary <?php echo getGradeColorClass($appraisal_data['grade']); ?>">
+                    <span class="badge bg-light <?php echo getGradeColorClass($appraisal_data['grade']); ?>">
                         <?php echo $appraisal_data['grade']; ?>
                     </span>
                 </p>
