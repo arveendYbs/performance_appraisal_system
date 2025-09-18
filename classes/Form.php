@@ -209,7 +209,55 @@ class Form {
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row['total'];
     }
+/**
+     * Get form sections with questions filtered by visibility
+     */
+    public function getFormStructureFiltered($viewer_type = 'both') {
+        $query = "SELECT fs.id as section_id, fs.section_title, fs.section_description, 
+                         fs.section_order, fs.visible_to,
+                         fq.id as question_id, fq.question_text, fq.question_description,
+                         fq.response_type, fq.options, fq.is_required, fq.question_order
+                  FROM form_sections fs
+                  LEFT JOIN form_questions fq ON fs.id = fq.section_id AND fq.is_active = 1
+                  WHERE fs.form_id = :form_id AND fs.is_active = 1
+                  AND (fs.visible_to = 'both' OR fs.visible_to = :viewer_type)
+                  ORDER BY fs.section_order, fq.question_order";
 
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':form_id', $this->id);
+        $stmt->bindParam(':viewer_type', $viewer_type);
+        $stmt->execute();
+
+        $structure = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $section_id = $row['section_id'];
+            
+            if (!isset($structure[$section_id])) {
+                $structure[$section_id] = [
+                    'id' => $section_id,
+                    'title' => $row['section_title'],
+                    'description' => $row['section_description'],
+                    'order' => $row['section_order'],
+                    'visible_to' => $row['visible_to'],
+                    'questions' => []
+                ];
+            }
+
+            if ($row['question_id']) {
+                $structure[$section_id]['questions'][] = [
+                    'id' => $row['question_id'],
+                    'text' => $row['question_text'],
+                    'description' => $row['question_description'],
+                    'response_type' => $row['response_type'],
+                    'options' => !is_null($row['options']) ? json_decode($row['options'], true) : null,
+                    'is_required' => $row['is_required'],
+                    'order' => $row['question_order']
+                ];
+            }
+        }
+
+        return array_values($structure);
+    }
     /**
      * Check if form is being used in appraisals
      */

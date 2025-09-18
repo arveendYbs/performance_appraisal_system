@@ -25,8 +25,31 @@ try {
     $form = new Form($db);
     $form->id = $appraisal->form_id;
     $form->readOne();
-    $form_structure = $form->getFormStructure();
-    
+    $form_structure = $form->getFormStructure('employee');
+    error_log("Original Form Structure: " . print_r($form_structure, true));
+
+     // Simple visibility check function
+    function isSectionVisibleToEmployee($section_id, $db) {
+        $query = "SELECT visible_to FROM form_sections WHERE id = ?";
+        $stmt = $db->prepare($query);
+        $stmt->execute([$section_id]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $visible_to = $result['visible_to'] ?? 'both';
+        return ($visible_to === 'both' || $visible_to === 'employee');
+    }
+    // Filter sections by visibility (default to both if not set)
+    $filtered_sections = [];
+    foreach ($form_structure as $section) {
+        $visible_to = strtolower($section['visible_to'] ?? 'both'); // fallback
+        if ($visible_to === 'both' || $visible_to === 'employee') {
+            $filtered_sections[] = $section;
+        }
+    }
+
+    // If filtering removed everything (unlikely), fallback to full structure
+    $form_structure = !empty($filtered_sections) ? $filtered_sections : $form_structure;
+
+
     // Get existing responses
     $existing_responses = [];
     $responses_stmt = $appraisal->getResponses();
@@ -51,87 +74,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $success = true;
 
     try {
-        // 1) Save section comments first (section_comment_{id})
-        foreach ($_POST as $key => $value) {
-            if (strpos($key, 'section_comment_') === 0) {
-                $section_id = (int) str_replace('section_comment_', '', $key);
-                if (!$appraisal->saveSectionComment($section_id, $value)) {
-                    error_log("Failed to save section comment for section_id={$section_id}: " . print_r($value, true));
-                    $success = false;
+
+         // Handle file uploads first
+        $uploaded_files = [];
+        if (!empty($_FILES)) {
+            foreach ($_FILES as $field_name => $file) {
+                if ($file['error'] === UPLOAD_ERR_OK && strpos($field_name, 'attachment_') === 0) {
+                    $question_id = str_replace('attachment_', '', $field_name);
+                    
+                    // Validate file
+                    $allowed_types = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'xls', 'xlsx', 'txt'];
+                    $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                    $file_size = $file['size'];
+                    
+                    if (!in_array($file_ext, $allowed_types)) {
+                        throw new Exception("Invalid file type for attachment. Allowed: " . implode(', ', $allowed_types));
+                    }
+                    
+                    if ($file_size > 5 * 1024 * 1024) { // 5MB limit
+                        throw new Exception("File size too large. Maximum 5MB allowed.");
+                    }
+                    
+                    // Create uploads directory if it doesn't exist
+                    $upload_dir = __DIR__ . '/../../uploads/appraisals/' . $appraisal->id . '/';
+                    if (!file_exists($upload_dir)) {
+                        mkdir($upload_dir, 0755, true);
+                    }
+                    
+                    // Generate unique filename
+                    $filename = 'q' . $question_id . '_' . time() . '_' . preg_replace('/[^a-zA-Z0-9.-]/', '_', $file['name']);
+                    $filepath = $upload_dir . $filename;
+                    
+                    if (move_uploaded_file($file['tmp_name'], $filepath)) {
+                        $uploaded_files[$question_id] = 'uploads/appraisals/' . $appraisal->id . '/' . $filename;
+                    } else {
+                        throw new Exception("Failed to upload file: " . $file['name']);
+                    }
                 }
             }
         }
-
-        // 2) Save employee responses (question_{id}) and associated rating/comment fields
+        // Save responses - UPDATED VERSION
         foreach ($_POST as $key => $value) {
             if (strpos($key, 'question_') === 0) {
-                $question_id = (int) str_replace('question_', '', $key);
+                $question_id = str_replace('question_', '', $key);
+                $rating_key = 'rating_' . $question_id;
+                $comment_key = 'comment_' . $question_id;
+                
                 $response = is_array($value) ? implode(', ', $value) : $value;
-                $employee_rating = $_POST['rating_' . $question_id] ?? null;
-                $employee_comment = $_POST['comment_' . $question_id] ?? null;
-
-                // Your Appraisal::saveResponse expects:
-                // saveResponse($question_id, $employee_response = null, $employee_rating = null, $employee_comments = null,
-                //              $manager_response = null, $manager_rating = null, $manager_comments = null)
-                if (!$appraisal->saveResponse(
-                    $question_id,
-                    $response,
-                    $employee_rating,
-                    $employee_comment,
-                    null,
-                    null,
-                    null
-                )) {
-                    error_log("Failed to save employee response for question_id={$question_id}");
-                    $success = false;
-                }
+                $rating = $_POST[$rating_key] ?? null;
+                $comment = $_POST[$comment_key] ?? null;
+                $attachment = $uploaded_files[$question_id] ?? null;
+                
+                $appraisal->saveResponseWithAttachment($question_id, $response, $rating, $comment, $attachment);
             }
-        }
-
-        // 3) Handle standalone rating_ or comment_ fields for questions that don't post 'question_' (if any)
-        foreach ($_POST as $key => $value) {
-            if (strpos($key, 'rating_') === 0) {
-                $question_id = (int) str_replace('rating_', '', $key);
-                // if question_ was not posted we save rating only
+            // Handle standalone rating fields
+            elseif (strpos($key, 'rating_') === 0) {
+                $question_id = str_replace('rating_', '', $key);
                 if (!isset($_POST['question_' . $question_id])) {
-                    $employee_comment = $_POST['comment_' . $question_id] ?? null;
-                    if (!$appraisal->saveResponse($question_id, null, $value, $employee_comment, null, null, null)) {
-                        error_log("Failed to save standalone rating for question_id={$question_id}");
-                        $success = false;
-                    }
+                    $comment_key = 'comment_' . $question_id;
+                    $comment = $_POST[$comment_key] ?? null;
+                    $attachment = $uploaded_files[$question_id] ?? null;
+                    $appraisal->saveResponseWithAttachment($question_id, null, $value, $comment, $attachment);
                 }
-            } elseif (strpos($key, 'comment_') === 0) {
-                $question_id = (int) str_replace('comment_', '', $key);
+            }
+            // Handle standalone comment fields
+            elseif (strpos($key, 'comment_') === 0) {
+                $question_id = str_replace('comment_', '', $key);
                 if (!isset($_POST['question_' . $question_id]) && !isset($_POST['rating_' . $question_id])) {
-                    if (!$appraisal->saveResponse($question_id, null, null, $value, null, null, null)) {
-                        error_log("Failed to save standalone comment for question_id={$question_id}");
-                        $success = false;
-                    }
+                    $attachment = $uploaded_files[$question_id] ?? null;
+                    $appraisal->saveResponseWithAttachment($question_id, null, null, $value, $attachment);
                 }
             }
         }
-
-        // 4) Save manager inputs (if this page is used by managers or manager fields posted)
-        // manager_rating_{id} and manager_comment_{id}
-        foreach ($_POST as $key => $value) {
-            if (strpos($key, 'manager_rating_') === 0) {
-                $question_id = (int) str_replace('manager_rating_', '', $key);
-                $mgr_rating = !empty($value) ? intval($value) : null;
-                $mgr_comment = $_POST['manager_comment_' . $question_id] ?? null;
-
-                // Use saveResponse to set manager columns (pass manager params in the later args)
-                if (!$appraisal->saveResponse(
-                    $question_id,
-                    null,  // employee_response
-                    null,  // employee_rating
-                    null,  // employee_comments
-                    null,  // manager_response
-                    $mgr_rating,
-                    $mgr_comment
-                )) {
-                    error_log("Failed to save manager rating/comment for question_id={$question_id}");
-                    $success = false;
-                }
+        
+        // Handle attachment-only fields
+        foreach ($uploaded_files as $question_id => $filepath) {
+            if (!isset($_POST['question_' . $question_id]) && 
+                !isset($_POST['rating_' . $question_id]) && 
+                !isset($_POST['comment_' . $question_id])) {
+                $appraisal->saveResponseWithAttachment($question_id, null, null, null, $filepath);
             }
         }
 
@@ -183,10 +204,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
 
-<form method="POST" action="" id="appraisalForm">
+<form method="POST" action="" id="appraisalForm" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
     
     <?php foreach ($form_structure as $section_index => $section): ?>
+        <?php 
+    // Check if section is visible to employee
+    if (!isSectionVisibleToEmployee($section['id'], $db)) {
+        continue; // Skip this section for employee
+    }
+    ?>
     <div class="card mb-4">
         <div class="card-header">
             <h5 class="mb-0">
@@ -278,6 +305,7 @@ if ($section['title'] === 'Cultural Values'): ?>
                 <div class="text-muted small mb-2"><?php echo htmlspecialchars($question['description']); ?></div>
                 <?php endif; ?>
                 
+
                 <?php switch ($question['response_type']): 
                     case 'text': ?>
                         <input type="text" class="form-control" name="question_<?php echo $question['id']; ?>"
@@ -330,6 +358,31 @@ if ($section['title'] === 'Cultural Values'): ?>
                                   placeholder="Comments (optional)..."><?php echo htmlspecialchars($existing_response['employee_comments'] ?? ''); ?></textarea>
                     <?php break; */
 
+                     case 'attachment': ?>
+                        <div class="mb-3">
+                            <input type="file" class="form-control" name="attachment_<?php echo $question['id']; ?>" 
+                                   id="attachment_<?php echo $question['id']; ?>"
+                                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx,.txt">
+                            <div class="form-text">
+                                Allowed formats: PDF, Word, Excel, Images, Text files (Max: 5MB)
+                            </div>
+                            <?php if (!empty($existing_response['employee_attachment'])): ?>
+                            <div class="mt-2">
+                                <small class="text-success">
+                                    <i class="bi bi-paperclip me-1"></i>
+                                    Current file: <?php echo htmlspecialchars(basename($existing_response['employee_attachment'])); ?>
+                                    <a href="download.php?file=<?php echo urlencode($existing_response['employee_attachment']); ?>&type=employee" 
+                                       class="text-primary ms-2" target="_blank">
+                                        <i class="bi bi-download"></i> Download
+                                    </a>
+                                </small>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+                        <textarea class="form-control mt-2" name="comment_<?php echo $question['id']; ?>" rows="2"
+                                  placeholder="Optional comments about the attachment..."><?php echo htmlspecialchars($existing_response['employee_comments'] ?? ''); ?></textarea>
+                    <?php break;
+
                     case 'rating_10': ?>
                         <select class="form-select" name="rating_<?php echo $question['id']; ?>">
                             <option value="">Select rating...</option>
@@ -337,7 +390,7 @@ if ($section['title'] === 'Cultural Values'): ?>
                             <option value="<?php echo $i; ?>" <?php echo ($existing_response['employee_rating'] ?? '') == $i ? 'selected' : ''; ?>>
                                 <?php echo $i; ?> - <?php 
                                 if ($i == 0) echo 'Not Applicable';
-                                elseif ($i <= 2) echo 'Poor';
+                                elseif ($i <= 2) echo 'Below standard: Below job requirements and significant improvement is needed';
                                 elseif ($i <= 4) echo 'Below Average';
                                 elseif ($i <= 6) echo 'Average';
                                 elseif ($i <= 8) echo 'Good';

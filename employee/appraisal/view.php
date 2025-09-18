@@ -218,7 +218,7 @@ try {
                     <?php if (in_array($question['response_type'], ['rating_5', 'rating_10'])): ?>
                     <?php if ($response && $response['employee_rating'] !== null): ?>
                     <div class="mb-2">
-                        <span class="badge bg-primary me-2">Rating: <?php echo $response['employee_rating']; ?></span>
+                        <span class="badge bg-primary me-2">Score: <?php echo $response['employee_rating']; ?></span>
                         <span class="text-muted">
                            <!--  <?php 
                             $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10;
@@ -231,6 +231,8 @@ try {
                     </div>
                     <?php endif; ?>
                     <?php endif; ?>
+
+                    
                     
                     <div class="bg-light p-3 rounded">
                         <?php if ($question['response_type'] === 'checkbox'): ?>
@@ -244,51 +246,74 @@ try {
                             <?php else: ?>
                                 <em class="text-muted">No options selected</em>
                             <?php endif; ?>
-                        <?php else: ?>
-                            <?php if ($response && ($response['employee_response'] || $response['employee_comments'])): ?>
-                                <?php if ($response['employee_response']): ?>
-                                    <p class="mb-2"><?php echo nl2br(htmlspecialchars($response['employee_response'])); ?></p>
-                                <?php endif; ?>
-                                <?php if ($response['employee_comments']): ?>
-                                    <small><strong>Comments:</strong> <?php echo nl2br(htmlspecialchars($response['employee_comments'])); ?></small>
-                                <?php endif; ?>
-                            <?php else: ?>
-                                <em class="text-muted">No response provided</em>
-                            <?php endif; ?>
-                        <?php endif; ?>
-                    </div>
-                </div>
-                
-                <div class="col-md-6">
-                    <h6 class="text-success">Manager's Assessment:</h6>
-                    
-                    <?php if ($response && ($response['manager_rating'] !== null || $response['manager_comments'] || $response['manager_response'])): ?>
-                        <?php if ($response['manager_rating'] !== null): ?>
+                         <?php elseif ($question['response_type'] === 'attachment'): ?>
+                    <?php if ($response && $response['employee_attachment']): ?>
                         <div class="mb-2">
-                            <span class="badge bg-success me-2">Rating: <?php echo $response['manager_rating']; ?></span>
-                            <span class="text-muted">
-                              <!--   <?php 
-                                $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10;
-                                $stars = round(($response['manager_rating'] / $max_rating) * 5);
-                                for ($i = 1; $i <= 5; $i++) {
-                                    echo $i <= $stars ? '<i class="bi bi-star-fill text-warning"></i>' : '<i class="bi bi-star text-muted"></i>';
-                                }
-                                ?> -->
-                            </span>
+                            <i class="bi bi-paperclip me-2"></i>
+                            <strong>Attachment:</strong>
+                            <a href="download.php?file=<?php echo urlencode($response['employee_attachment']); ?>&type=employee" 
+                               class="text-primary ms-2" target="_blank">
+                                <?php echo htmlspecialchars(basename($response['employee_attachment'])); ?>
+                                <i class="bi bi-download ms-1"></i>
+                            </a>
                         </div>
+                        <?php if ($response['employee_comments']): ?>
+                            <small><strong>Comments:</strong> <?php echo nl2br(htmlspecialchars($response['employee_comments'])); ?></small>
                         <?php endif; ?>
-                        
-                        <div class="bg-success bg-opacity-10 p-3 rounded border-start border-success border-3">
-                            <?php if ($response['manager_response']): ?>
-                                <p class="mb-2"><?php echo nl2br(htmlspecialchars($response['manager_response'])); ?></p>
-                            <?php endif; ?>
-                            <?php if ($response['manager_comments']): ?>
-                                <p class="mb-0"><?php echo nl2br(htmlspecialchars($response['manager_comments'])); ?></p>
-                            <?php endif; ?>
-                        </div>
                     <?php else: ?>
-                        <div class="bg-light p-3 rounded">
-                            <em class="text-muted">No manager feedback yet</em>
+                        <em class="text-muted">No attachment provided</em>
+                    <?php endif; ?>
+                
+                <?php else: ?>
+                    <?php if ($response && ($response['employee_response'] || $response['employee_comments'])): ?>
+                        <?php if ($response['employee_response']): ?>
+                            <p class="mb-2"><?php echo nl2br(htmlspecialchars($response['employee_response'])); ?></p>
+                        <?php endif; ?>
+                        <?php if ($response['employee_comments']): ?>
+                            <small><strong>Comments:</strong> <?php echo nl2br(htmlspecialchars($response['employee_comments'])); ?></small>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <em class="text-muted">No response provided</em>
+                    <?php endif; ?>
+                <?php endif; ?>
+            </div>
+        </div>
+        
+                
+        <div class="col-md-6">
+            <h6 class="text-success">Manager's Assessment:</h6>
+            
+            <?php if ($response && ($response['manager_rating'] !== null || $response['manager_comments'] || 
+                                  $response['manager_response'] || $response['manager_attachment'])): ?>
+                <?php if ($response['manager_rating'] !== null): ?>
+                    <div class="mb-2">
+                        <span class="badge bg-success me-2">Rating: <?php echo $response['manager_rating']; ?></span>
+                    </div>
+                <?php endif; ?>
+                
+                <div class="bg-success bg-opacity-10 p-3 rounded border-start border-success border-3">
+                    <?php if ($question['response_type'] === 'attachment' && $response['manager_attachment']): ?>
+                        <div class="mb-2">
+                            <i class="bi bi-paperclip me-2"></i>
+                            <strong>Manager Attachment:</strong>
+                            <a href="download.php?file=<?php echo urlencode($response['manager_attachment']); ?>&type=manager" 
+                               class="text-primary ms-2" target="_blank">
+                                <?php echo htmlspecialchars(basename($response['manager_attachment'])); ?>
+                                <i class="bi bi-download ms-1"></i>
+                            </a>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <?php if ($response['manager_response']): ?>
+                        <p class="mb-2"><?php echo nl2br(htmlspecialchars($response['manager_response'])); ?></p>
+                    <?php endif; ?>
+                    <?php if ($response['manager_comments']): ?>
+                        <p class="mb-0"><?php echo nl2br(htmlspecialchars($response['manager_comments'])); ?></p>
+                    <?php endif; ?>
+                </div>
+            <?php else: ?>
+                <div class="bg-light p-3 rounded">
+                    <em class="text-muted">No manager feedback yet</em>
                         </div>
                     <?php endif; ?>
                 </div>

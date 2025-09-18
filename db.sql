@@ -169,3 +169,17 @@ INSERT INTO training_needs (category, description, applicable_roles) VALUES
 INSERT INTO users (name, emp_number, email, emp_email, position, department, date_joined, site, role, password) VALUES
 ('System Administrator', 'ADMIN001', 'admin@company.com', 'admin@ybs.com', 'IT Administrator', 'Information Technology', CURDATE(), 'Head Office', 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi');
 -- Password is 'password' hashed
+
+
+
+-- Add attachment column to responses table
+ALTER TABLE responses ADD COLUMN employee_attachment VARCHAR(255) NULL AFTER employee_comments;
+ALTER TABLE responses ADD COLUMN manager_attachment VARCHAR(255) NULL AFTER manager_comments;
+
+-- Update form_questions response_type enum to include attachment
+ALTER TABLE form_questions MODIFY COLUMN response_type 
+ENUM('text', 'textarea', 'rating_5', 'rating_10', 'checkbox', 'radio', 'attachment', 'display') NOT NULL;
+
+-- Add visible_to column to form_sections
+ALTER TABLE form_sections ADD COLUMN visible_to ENUM('both', 'employee', 'reviewer') DEFAULT 'both' 
+AFTER section_order;

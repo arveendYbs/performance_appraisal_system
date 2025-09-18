@@ -40,11 +40,11 @@ try {
             if (empty($section_title)) {
                 $error_message = 'Section title is required.';
             } else {
-                $query = "INSERT INTO form_sections (form_id, section_title, section_description, section_order, is_active) 
-                         VALUES (?, ?, ?, ?, ?)";
+                $query = "INSERT INTO form_sections (form_id, section_title, section_description, section_order, is_active, visible_to) 
+                         VALUES (?, ?, ?, ?, ?, ?)";
                 $stmt = $db->prepare($query);
                 
-                if ($stmt->execute([$form_id, $section_title, $section_description, $section_order, $is_active])) {
+                if ($stmt->execute([$form_id, $section_title, $section_description, $section_order, $is_active, $_POST['visible_to'] ?? 'both'])) {
                     $section_id = $db->lastInsertId();
                     
                     logActivity($_SESSION['user_id'], 'CREATE', 'form_sections', $section_id, null,
@@ -124,7 +124,30 @@ require_once __DIR__ . '/../../includes/header.php';
                                min="1" value="<?php echo $next_order; ?>">
                         <div class="form-text">Sections will be displayed in this order</div>
                     </div>
-                    
+                    <div class="mb-3">
+                        <label for="visible_to" class="form-label">Section Visibility <span class="text-danger">*</span></label>
+                        <select class="form-select" id="visible_to" name="visible_to" required>
+                            <option value="both" <?php echo (($_POST['visible_to'] ?? 'both') == 'both') ? 'selected' : ''; ?>>
+                                Both Employee & Reviewer
+                            </option>
+                            <option value="employee" <?php echo (($_POST['visible_to'] ?? '') == 'employee') ? 'selected' : ''; ?>>
+                                Employee Only
+                            </option>
+                            <option value="reviewer" <?php echo (($_POST['visible_to'] ?? '') == 'reviewer') ? 'selected' : ''; ?>>
+                                Reviewer Only
+                            </option>
+                        </select>
+                        <div class="form-text">
+                            Choose who can see this section:
+                            <ul class="mt-2 mb-0">
+                                <li><strong>Both:</strong> Section appears in employee form and manager review</li>
+                                <li><strong>Employee Only:</strong> Section only appears when employee fills the form</li>
+                                <li><strong>Reviewer Only:</strong> Section only appears during manager review</li>
+                            </ul>
+                        </div>
+                    </div>
+
+               
                     <div class="mb-4">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="is_active" name="is_active" checked>

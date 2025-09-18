@@ -46,6 +46,16 @@ try {
     $form = new Form($db);
     $form->id = $appraisal_data['form_id'];
     $form_structure = $form->getFormStructure();
+
+     // Simple visibility check function for manager
+    function isSectionVisibleToManager($section_id, $db) {
+        $query = "SELECT visible_to FROM form_sections WHERE id = ?";
+        $stmt = $db->prepare($query);
+        $stmt->execute([$section_id]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $visible_to = $result['visible_to'] ?? 'both';
+        return ($visible_to === 'both' || $visible_to === 'reviewer');
+    }
     
     // Get existing responses
     $appraisal = new Appraisal($db);
@@ -70,20 +80,62 @@ try {
     error_log("Review appraisal error: " . $e->getMessage());
     redirect('pending.php', 'An error occurred. Please try again.', 'error');
 }
+
+
 // Handle form submission for manager feedback
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
         redirect('review.php?id=' . $appraisal_id, 'Invalid request. Please try again.', 'error');
     }
-    
     try {
-        // Save manager responses
+        // Handle file uploads first
+        $uploaded_files = [];
+        if (!empty($_FILES)) {
+            foreach ($_FILES as $field_name => $file) {
+                if ($file['error'] === UPLOAD_ERR_OK && strpos($field_name, 'attachment_') === 0) {
+                    $question_id = str_replace('attachment_', '', $field_name);
+                    
+                    // Validate file
+                    $allowed_types = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'xls', 'xlsx', 'txt'];
+                    $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                    $file_size = $file['size'];
+                    
+                    if (!in_array($file_ext, $allowed_types)) {
+                        throw new Exception("Invalid file type for attachment. Allowed: " . implode(', ', $allowed_types));
+                    }
+                    
+                    if ($file_size > 5 * 1024 * 1024) { // 5MB limit
+                        throw new Exception("File size too large. Maximum 5MB allowed.");
+                    }
+                    
+                    // Create uploads directory if it doesn't exist
+                    $upload_dir = __DIR__ . '/../../uploads/appraisals/' . $appraisal_id . '/';
+                    if (!file_exists($upload_dir)) {
+                        mkdir($upload_dir, 0755, true);
+                    }
+                    
+                    // Generate unique filename
+                    $filename = 'q' . $question_id . '_' . time() . '_' . preg_replace('/[^a-zA-Z0-9.-]/', '_', $file['name']);
+                    $filepath = $upload_dir . $filename;
+                    
+                    if (move_uploaded_file($file['tmp_name'], $filepath)) {
+                        $uploaded_files[$question_id] = 'uploads/appraisals/' . $appraisal_id . '/' . $filename;
+                    } else {
+                        throw new Exception("Failed to upload file: " . $file['name']);
+                    }
+                }
+            }
+        }
+
+    
+        // Save manager responses with attachments
         foreach ($_POST as $key => $value) {
             if (strpos($key, 'manager_rating_') === 0) {
                 $question_id = str_replace('manager_rating_', '', $key);
                 $rating = !empty($value) ? intval($value) : null;
                 $comment_key = 'manager_comment_' . $question_id;
                 $comment = $_POST[$comment_key] ?? null;
+                $attachment = $uploaded_files[$question_id] ?? null;
                 
                 // Check if response exists
                 $check_query = "SELECT * FROM responses WHERE appraisal_id = ? AND question_id = ?";
@@ -93,41 +145,97 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 
                 if ($existing) {
                     // Update existing
-                    $query = "UPDATE responses SET manager_rating = ?, manager_comments = ? 
-                             WHERE appraisal_id = ? AND question_id = ?";
-                    $stmt = $db->prepare($query);
-                    $stmt->execute([$rating, $comment, $appraisal_id, $question_id]);
+                    $update_fields = [];
+                    $update_values = [];
+                    
+                    if ($rating !== null) {
+                        $update_fields[] = "manager_rating = ?";
+                        $update_values[] = $rating;
+                    }
+                    if ($comment !== null) {
+                        $update_fields[] = "manager_comments = ?";
+                        $update_values[] = $comment;
+                    }
+                    if ($attachment !== null) {
+                        $update_fields[] = "manager_attachment = ?";
+                        $update_values[] = $attachment;
+                    }
+                    
+                    if (!empty($update_fields)) {
+                        $query = "UPDATE responses SET " . implode(', ', $update_fields) . " WHERE appraisal_id = ? AND question_id = ?";
+                        $update_values[] = $appraisal_id;
+                        $update_values[] = $question_id;
+                        $stmt = $db->prepare($query);
+                        $stmt->execute($update_values);
+                    }
                 } else {
                     // Insert new
-                    $query = "INSERT INTO responses (appraisal_id, question_id, manager_rating, manager_comments) 
-                             VALUES (?, ?, ?, ?)";
+                    $query = "INSERT INTO responses (appraisal_id, question_id, manager_rating, manager_comments, manager_attachment) 
+                             VALUES (?, ?, ?, ?, ?)";
                     $stmt = $db->prepare($query);
-                    $stmt->execute([$appraisal_id, $question_id, $rating, $comment]);
+                    $stmt->execute([$appraisal_id, $question_id, $rating, $comment, $attachment]);
                 }
             }
-            // Handle standalone manager comments (for cultural values, etc.)
+            // Handle standalone manager comments
             elseif (strpos($key, 'manager_comment_') === 0 && 
                     !isset($_POST[str_replace('manager_comment_', 'manager_rating_', $key)])) {
                 $question_id = str_replace('manager_comment_', '', $key);
                 $comment = $value;
+                $attachment = $uploaded_files[$question_id] ?? null;
                 
-                if (!empty($comment)) {
+                if (!empty($comment) || $attachment) {
                     $check_query = "SELECT * FROM responses WHERE appraisal_id = ? AND question_id = ?";
                     $check_stmt = $db->prepare($check_query);
                     $check_stmt->execute([$appraisal_id, $question_id]);
                     $existing = $check_stmt->fetch();
                     
                     if ($existing) {
-                        $query = "UPDATE responses SET manager_comments = ? 
-                                 WHERE appraisal_id = ? AND question_id = ?";
-                        $stmt = $db->prepare($query);
-                        $stmt->execute([$comment, $appraisal_id, $question_id]);
+                        $update_fields = [];
+                        $update_values = [];
+                        
+                        if (!empty($comment)) {
+                            $update_fields[] = "manager_comments = ?";
+                            $update_values[] = $comment;
+                        }
+                        if ($attachment) {
+                            $update_fields[] = "manager_attachment = ?";
+                            $update_values[] = $attachment;
+                        }
+                        
+                        if (!empty($update_fields)) {
+                            $query = "UPDATE responses SET " . implode(', ', $update_fields) . " WHERE appraisal_id = ? AND question_id = ?";
+                            $update_values[] = $appraisal_id;
+                            $update_values[] = $question_id;
+                            $stmt = $db->prepare($query);
+                            $stmt->execute($update_values);
+                        }
                     } else {
-                        $query = "INSERT INTO responses (appraisal_id, question_id, manager_comments) 
-                                 VALUES (?, ?, ?)";
+                        $query = "INSERT INTO responses (appraisal_id, question_id, manager_comments, manager_attachment) 
+                                 VALUES (?, ?, ?, ?)";
                         $stmt = $db->prepare($query);
-                        $stmt->execute([$appraisal_id, $question_id, $comment]);
+                        $stmt->execute([$appraisal_id, $question_id, $comment, $attachment]);
                     }
+                }
+            }
+        }
+        
+        // Handle attachment-only uploads
+        foreach ($uploaded_files as $question_id => $filepath) {
+            if (!isset($_POST['manager_rating_' . $question_id]) && 
+                !isset($_POST['manager_comment_' . $question_id])) {
+                $check_query = "SELECT * FROM responses WHERE appraisal_id = ? AND question_id = ?";
+                $check_stmt = $db->prepare($check_query);
+                $check_stmt->execute([$appraisal_id, $question_id]);
+                $existing = $check_stmt->fetch();
+                
+                if ($existing) {
+                    $query = "UPDATE responses SET manager_attachment = ? WHERE appraisal_id = ? AND question_id = ?";
+                    $stmt = $db->prepare($query);
+                    $stmt->execute([$filepath, $appraisal_id, $question_id]);
+                } else {
+                    $query = "INSERT INTO responses (appraisal_id, question_id, manager_attachment) VALUES (?, ?, ?)";
+                    $stmt = $db->prepare($query);
+                    $stmt->execute([$appraisal_id, $question_id, $filepath]);
                 }
             }
         }
@@ -141,6 +249,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         error_log("Save manager review error: " . $e->getMessage());
         redirect('review.php?id=' . $appraisal_id, 'Failed to save review. Please try again.', 'error');
     }
+    
 
 }
 ?>
@@ -200,6 +309,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
     
     <?php foreach ($form_structure as $section_index => $section): ?>
+
+    <?php 
+    // Check if section is visible to manager/reviewer
+    if (!isSectionVisibleToManager($section['id'], $db)) {
+        continue; // Skip this section for manager
+    }
+    ?>
+
     <div class="card mb-4">
         <div class="card-header">
             <h5 class="mb-0">
