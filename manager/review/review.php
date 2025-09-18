@@ -340,16 +340,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <div class="mb-4 pb-4 border-bottom">
     <h6 class="fw-bold mb-3"><?php echo htmlspecialchars($question['text']); ?></h6>
     
+    <?php if ($question['description']): ?>
+                <p class="text-muted small mb-3"><?php echo formatDescriptionAsBullets($question['description']); ?></p>
+    <?php endif; ?>
+               
+    
     <div class="review-layout">
         <div class="employee-column">
             <div class="column-header">Employee Response</div>
             
             <?php if ($question['response_type'] === 'display'): ?>
-                <!-- Display-only content -->
-                <div class="form-control-plaintext">
-                    <?php echo nl2br(htmlspecialchars($question['description'])); ?>
-                </div>
-            <?php else: ?>
+                    <!-- Display only question - no employee/manager response needed -->
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Information only - no assessment required
+                    </div>
+                <?php else: ?>
                 <?php // Show employee response text ?>
                 <?php if ($response['employee_response'] || $response['employee_comments']): ?>
                     <?php if ($response['employee_response']): ?>
