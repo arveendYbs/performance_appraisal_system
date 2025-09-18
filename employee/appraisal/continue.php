@@ -245,10 +245,11 @@ if ($section['title'] === 'Cultural Values'): ?>
         </label>
         
         <?php if ($question['response_type'] === 'display'): ?>
-            <!-- Display-only content -->
-            <div class="form-control bg-light" style="min-height: 60px;">
-                <?php echo nl2br(htmlspecialchars($question['description'])); ?>
-            </div>
+                    <!-- Display only - no input fields -->
+                    <!-- <div class="alert alert-info mb-2">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <?php echo formatDescriptionAsBullets($question['text']); ?>
+                    </div> -->
         <?php else: ?>
             <!-- Regular input fields -->
             <?php if ($question['response_type'] === 'textarea'): ?>
@@ -301,9 +302,12 @@ if ($section['title'] === 'Cultural Values'): ?>
                     <?php if ($question['is_required']): ?><span class="text-danger">*</span><?php endif; ?>
                 </label>
                 
-                <?php if ($question['description']): ?>
-                <div class="text-muted small mb-2"><?php echo htmlspecialchars($question['description']); ?></div>
+                  <?php if ($question['description']): ?>
+                <div class="text-muted small mb-2">
+                    <?php echo formatDescriptionAsBullets($question['description']); ?>
+                </div>
                 <?php endif; ?>
+                
                 
 
                 <?php switch ($question['response_type']): 
@@ -391,10 +395,10 @@ if ($section['title'] === 'Cultural Values'): ?>
                                 <?php echo $i; ?> - <?php 
                                 if ($i == 0) echo 'Not Applicable';
                                 elseif ($i <= 2) echo 'Below standard: Below job requirements and significant improvement is needed';
-                                elseif ($i <= 4) echo 'Below Average';
-                                elseif ($i <= 6) echo 'Average';
-                                elseif ($i <= 8) echo 'Good';
-                                else echo 'Excellent';
+                                elseif ($i <= 4) echo 'Need Improvement: Improvement is needed to meet job requirements';
+                                elseif ($i <= 6) echo 'Satisfactory: Satisfactorily met job requirements';
+                                elseif ($i <= 8) echo 'Good: Exceeded job requirements';
+                                else echo 'Excellent: Far exceeds job requirements';
                                 ?>
                             </option>
                             <?php endfor; ?>
@@ -403,12 +407,14 @@ if ($section['title'] === 'Cultural Values'): ?>
                                   placeholder="Comments (optional)..."><?php echo htmlspecialchars($existing_response['employee_comments'] ?? ''); ?></textarea>
                     <?php break;
                     case 'display': ?>
-                        <div class="alert alert-secondary">
+                           <!-- Display only - no input needed -->
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
                             <?php echo nl2br(htmlspecialchars($question['text'])); ?>
                         </div>
                         <?php if ($question['description']): ?>
-                            <div class="text-muted small mb-2">
-                                <?php echo nl2br(htmlspecialchars($question['description'])); ?>
+                            <div class="text-muted small">
+                                <?php echo formatDescriptionAsBullets($question['description']); ?>
                             </div>
                         <?php endif; ?>
                     <?php break;
@@ -443,6 +449,34 @@ if ($section['title'] === 'Cultural Values'): ?>
         </div>
     </div>
     <?php endforeach; ?>
+    
+    <!-- Total Score Display -->
+    <div class="card bg-light mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6><i class="bi bi-calculator me-2"></i>Performance Score Summary</h6>
+                    <div id="score-summary">
+                        <div class="mb-2">
+                            <strong>Rating Questions Answered:</strong> 
+                            <span id="answered-count">0</span> / <span id="total-questions">0</span>
+                        </div>
+                        <div class="mb-2">
+                            <strong>Average Score:</strong> 
+                            <span id="average-score" class="badge bg-primary fs-6">0.0</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h6><i class="bi bi-info-circle me-2"></i>Rating Guide</h6>
+                    <small class="text-muted">
+<!--                         <strong>5-Point Scale:</strong> 1=Poor, 2=Below Average, 3=Average, 4=Good, 5=Excellent<br>
+ -->                        <strong>10-Point Scale:</strong> 0=N/A, 1-2=Poor, 3-4=Below Average, 5-6=Average, 7-8=Good, 9-10=Excellent
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <!-- Action Buttons -->
     <div class="card">
@@ -482,8 +516,72 @@ document.addEventListener('DOMContentLoaded', function() {
         const displayId = slider.getAttribute('oninput').match(/'([^']+)'/)[1];
         updateRatingValue(slider, displayId);
     });
+    
+    // Initialize score calculator
+    updateScoreCalculator();
 });
-// Add to your existing JavaScript
+
+// Calculate performance scores
+function updateScoreCalculator() {
+    let totalQuestions = 0;
+    let answeredQuestions = 0;
+    let totalScore = 0;
+    
+   /*  // Count rating_5 questions
+    document.querySelectorAll('input[name^="rating_"][type="range"][max="5"]').forEach(function(input) {
+        totalQuestions++;
+        const value = parseInt(input.value) || 0;
+        if (value > 0) {
+            answeredQuestions++;
+            totalScore += value;
+        }
+    }); */
+    
+    // Count rating_10 questions
+    document.querySelectorAll('select[name^="rating_"]').forEach(function(select) {
+        totalQuestions++;
+        const value = parseInt(select.value) || 0;
+        if (value > 0) {
+            answeredQuestions++;
+            // Convert 10-point to 5-point scale for average calculation
+           // totalScore += (value / 2);
+           totalScore += value; // Keep as is for 10-point average
+        }
+    });
+    
+    // Calculate average
+    const average = answeredQuestions > 0 ? (totalScore / answeredQuestions).toFixed(1) : 0;
+    
+    // Update display
+    document.getElementById('answered-count').textContent = answeredQuestions;
+    document.getElementById('total-questions').textContent = totalQuestions;
+    document.getElementById('average-score').textContent = average;
+    
+    // Update badge color based on average
+    const avgBadge = document.getElementById('average-score');
+    if (average >= 4.0) {
+        avgBadge.className = 'badge bg-success fs-6';
+    } else if (average >= 3.0) {
+        avgBadge.className = 'badge bg-warning fs-6';
+    } else {
+        avgBadge.className = 'badge bg-danger fs-6';
+    }
+}
+
+// Add event listeners for score updates
+document.addEventListener('DOMContentLoaded', function() {
+    // For range inputs
+    document.querySelectorAll('input[type="range"]').forEach(function(input) {
+        input.addEventListener('input', updateScoreCalculator);
+    });
+    
+    // For select dropdowns
+    document.querySelectorAll('select[name^="rating_"]').forEach(function(select) {
+        select.addEventListener('change', updateScoreCalculator);
+    });
+});
+
+// Form validation
 document.getElementById('appraisalForm').addEventListener('submit', function(e) {
     const requiredFields = this.querySelectorAll('[required]');
     let hasError = false;
@@ -502,36 +600,16 @@ document.getElementById('appraisalForm').addEventListener('submit', function(e) 
         alert('Please fill in all required fields');
     }
 });
+
 // Auto-save functionality
-/* let autoSaveTimer;
-document.getElementById('appraisalForm').addEventListener('input', function() {
-    clearTimeout(autoSaveTimer);
-    autoSaveTimer = setTimeout(function() {
-        // Create a hidden form to submit for auto-save
-        const formData = new FormData(document.getElementById('appraisalForm'));
-        formData.set('action', 'save');
-        
-        fetch('continue.php', {
-            method: 'POST',
-            body: formData
-        }).then(response => {
-            if (response.ok) {
-                console.log('Auto-saved successfully');
-                // Show a small indicator
-                showAutoSaveIndicator();
-            }
-        }).catch(error => {
-            console.error('Auto-save failed:', error);
-        });
-    }, 30000); // Auto-save after 30 seconds of inactivity
-}); */
 let autoSaveTimer;
 document.getElementById('appraisalForm').addEventListener('input', function() {
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(function() {
         const formData = new FormData(document.getElementById('appraisalForm'));
+        formData.set('action', 'save');
         
-        fetch('continue.php?id=<?php echo $appraisal_id; ?>', {
+        fetch('continue.php', {
             method: 'POST',
             body: formData
         }).then(response => {
@@ -548,12 +626,14 @@ document.getElementById('appraisalForm').addEventListener('input', function() {
 function showAutoSaveIndicator() {
     const indicator = document.createElement('div');
     indicator.className = 'alert alert-success position-fixed';
-    indicator.style.cssText = 'top: 80px; right: 20px; z-index: 9999; opacity: 0.9;';
-    indicator.innerHTML = '<i class="bi bi-check-circle me-2"></i>Appraisal auto-saved';
+    indicator.style.cssText = 'top: 80px; right: 20px; z-index: 9999; opacity: 0.9; font-size: 0.875rem; padding: 0.5rem 1rem;';
+    indicator.innerHTML = '<i class="bi bi-check-circle me-2"></i>Auto-saved';
     document.body.appendChild(indicator);
     
     setTimeout(() => {
-        indicator.remove();
+        if (indicator.parentNode) {
+            indicator.parentNode.removeChild(indicator);
+        }
     }, 2000);
 }
 </script>

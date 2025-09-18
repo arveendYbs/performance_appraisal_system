@@ -109,7 +109,32 @@ function displayFlashMessage() {
 function formatDate($date, $format = 'M d, Y') {
     return date($format, strtotime($date));
 }
-
+/**
+ * Convert text with newlines to bullet points
+ */
+function formatDescriptionAsBullets($text) {
+    if (empty($text)) {
+        return '';
+    }
+    
+    // Split by newlines and filter out empty lines
+    $lines = array_filter(array_map('trim', explode("\n", $text)));
+    
+    if (count($lines) <= 1) {
+        // Single line - just return as is
+        return htmlspecialchars($text);
+    }
+    
+    // Multiple lines - convert to bullet points
+    $bullets = '';
+    foreach ($lines as $line) {
+        if (!empty($line)) {
+            $bullets .= '<li>' . htmlspecialchars($line) . '</li>';
+        }
+    }
+    
+    return '<ul class="mb-0">' . $bullets . '</ul>';
+}
 /**
  * Calculate performance grade
  */
