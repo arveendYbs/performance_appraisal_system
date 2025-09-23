@@ -109,14 +109,20 @@ try {
                 </small>
             </div>
             <div>
-                <span class="badge <?php echo getStatusBadgeClass($appraisal_data['status']); ?> me-2">
-                    <?php echo ucwords(str_replace('_', ' ', $appraisal_data['status'])); ?>
-                </span>
+               
                 <?php if ($appraisal_data['status'] === 'draft'): ?>
                 <a href="continue.php" class="btn btn-primary">
                     <i class="bi bi-pencil me-2"></i>Continue
                 </a>
                 <?php endif; ?>
+            </div>
+            <div>
+                <span class="badge <?php echo getStatusBadgeClass($appraisal_data['status']); ?> me-2">
+                    <?php echo ucwords(str_replace('_', ' ', $appraisal_data['status'])); ?>
+                </span>
+                <a href="../" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>Back to Home
+                </a>
             </div>
         </div>
     </div>
@@ -291,7 +297,7 @@ try {
                                     <?php echo formatDescriptionAsBullets($question['description']); ?>
                                 </div>
                             <?php endif; ?>
-                      
+                      <br></br>
                     <?php
                     continue;
                 }
@@ -299,6 +305,7 @@ try {
                 // Skip overall comments question - it will be shown at the bottom
                 if (stripos($question['text'], 'Overall Comments') !== false) continue;
             ?>
+            <br></br>
             <div class="col-md-6 mb-4">
                 <div class="border rounded p-3 h-100">
                     <div class="d-flex align-items-center mb-2">
@@ -462,7 +469,7 @@ try {
                         <?php if ($response && ($response['manager_rating'] !== null || $response['manager_comments'] || $response['manager_response'])): ?>
                             <?php if ($response['manager_rating'] !== null): ?>
                             <div class="mb-2">
-                                <span class="badge bg-success me-2">Rating: <?php echo $response['manager_rating']; ?></span>
+                                <span class="badge bg-success me-2">Score: <?php echo $response['manager_rating']; ?></span>
                                 <span class="text-muted">
                                     <?php 
                                     $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10;

@@ -219,26 +219,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         }
         
-        // Handle attachment-only uploads
-        foreach ($uploaded_files as $question_id => $filepath) {
-            if (!isset($_POST['manager_rating_' . $question_id]) && 
-                !isset($_POST['manager_comment_' . $question_id])) {
-                $check_query = "SELECT * FROM responses WHERE appraisal_id = ? AND question_id = ?";
-                $check_stmt = $db->prepare($check_query);
-                $check_stmt->execute([$appraisal_id, $question_id]);
-                $existing = $check_stmt->fetch();
-                
-                if ($existing) {
-                    $query = "UPDATE responses SET manager_attachment = ? WHERE appraisal_id = ? AND question_id = ?";
-                    $stmt = $db->prepare($query);
-                    $stmt->execute([$filepath, $appraisal_id, $question_id]);
-                } else {
-                    $query = "INSERT INTO responses (appraisal_id, question_id, manager_attachment) VALUES (?, ?, ?)";
-                    $stmt = $db->prepare($query);
-                    $stmt->execute([$appraisal_id, $question_id, $filepath]);
-                }
-            }
-        }
+       
         
         logActivity($_SESSION['user_id'], 'UPDATE', 'appraisals', $appraisal_id, null, null, 
                    'Updated manager review for ' . $appraisal_data['employee_name']);
@@ -347,14 +328,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     <div class="review-layout">
         <div class="employee-column">
-            <div class="column-header">Employee Response</div>
+<?php if ($response_type !== 'display'): ?>
+    <div class="column-header">Employee Response</div>
+<?php endif; ?>
             
             <?php if ($question['response_type'] === 'display'): ?>
                     <!-- Display only question - no employee/manager response needed -->
-                    <div class="alert alert-info">
+                  <!--   <div class="alert alert-info">
                         <i class="bi bi-info-circle me-2"></i>
                         Information only - no assessment required
-                    </div>
+                    </div> -->
                 <?php else: ?>
                 <?php // Show employee response text ?>
                 <?php if ($response['employee_response'] || $response['employee_comments']): ?>
@@ -371,15 +354,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         </div>
         
         <div class="manager-column">
-            <div class="column-header">Manager Feedback</div>
+<?php if ($response_type !== 'display'): ?>
+    <div class="column-header">Reviewer Response</div>
+<?php endif; ?>
             <?php if ($response_type !== 'display' && $question_id): ?>
                 <textarea class="form-control" 
                         name="manager_comment_<?php echo $question_id; ?>" 
                         rows="3"
                         placeholder="Provide your feedback on this cultural value..."
                 ><?php echo htmlspecialchars($response['manager_comments'] ?? ''); ?></textarea>
-            <?php else: ?>
-                <em class="text-muted">No feedback required for display-only content</em>
             <?php endif; ?>
         </div>
     </div>
@@ -393,43 +376,91 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <div class="mb-4 pb-4 border-bottom">
                 <h6 class="fw-bold mb-3"><?php echo htmlspecialchars($question['text']); ?></h6>
                 
-                <div class="review-layout">
-                    <div class="employee-column">
-                        <div class="column-header">Employee Response</div>
+                 
+
+                 <?php if ($question['response_type'] === 'display'): ?>
+                    <!-- Display questions - show only title and description -->
+                    
                         
-                        <?php // Show employee rating if it exists ?>
-                        <?php if (in_array($question['response_type'], ['rating_5', 'rating_10']) && 
-                                isset($response['employee_rating']) && $response['employee_rating'] !== null): ?>
-                        <div class="mb-3 p-2 bg-info bg-opacity-10 rounded border-start border-info border-3">
-                            <strong>Employee Score: </strong>
-                            <span class="badge bg-info fs-6"><?php echo $response['employee_rating']; ?></span>
-                            <?php 
-                            $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10;
-                            $percentage = round(($response['employee_rating'] / $max_rating) * 100);
-                            ?>
-                            <span class="text-muted">/ <?php echo $max_rating; ?> (<?php echo $percentage; ?>%)</span>
-                            
-                            <?php // Show rating description ?>
-                            <div class="small text-muted mt-1">
-                                <?php
-                                if ($question['response_type'] === 'rating_5') {
-                                    $descriptions = [1 => 'Poor', 2 => 'Below Average', 3 => 'Average', 4 => 'Good', 5 => 'Excellent'];
-                                    echo $descriptions[$response['employee_rating']] ?? '';
-                                } else {
-                                    if ($response['employee_rating'] == 0) echo 'Not Applicable';
-                                    elseif ($response['employee_rating'] <= 2) echo 'Poor';
-                                    elseif ($response['employee_rating'] <= 4) echo 'Below Average';
-                                    elseif ($response['employee_rating'] <= 6) echo 'Average';
-                                    elseif ($response['employee_rating'] <= 8) echo 'Good';
-                                    else echo 'Excellent';
-                                }
-                                ?>
+                        <?php echo nl2br(htmlspecialchars($question['text'])); ?>
+                        <?php if ($question['description']): ?>
+                            <div class="mt-2">
+                                <?php echo formatDescriptionAsBullets($question['description']); ?>
                             </div>
-                        </div>
+                        <?php endif; ?>
+                
+                <?php else: ?>
+                    <!-- Regular questions with employee/manager response -->
+                    <div class="review-layout">
+                        <div class="employee-column">
+                            <div class="column-header">Employee Response</div>
+                            
+                            <?php // Show employee rating if it exists ?>
+                            <?php if (in_array($question['response_type'], ['rating_5', 'rating_10']) && 
+                                    isset($response['employee_rating']) && $response['employee_rating'] !== null): ?>
+                            <div class="mb-3 p-2 bg-info bg-opacity-10 rounded border-start border-info border-3">
+                                <strong>Employee Score: </strong>
+                                <span class="badge bg-info fs-6"><?php echo $response['employee_rating']; ?></span>
+                                <?php 
+                                $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10;
+                                $percentage = round(($response['employee_rating'] / $max_rating) * 100);
+                                ?>
+                                <span class="text-muted">/ <?php echo $max_rating; ?> (<?php echo $percentage; ?>%)</span>
+                                
+                                <?php // Show rating description ?>
+                                <div class="small text-muted mt-1">
+                                    <?php
+                                    if ($question['response_type'] === 'rating_5') {
+                                        $descriptions = [1 => 'Poor', 2 => 'Below Average', 3 => 'Average', 4 => 'Good', 5 => 'Excellent'];
+                                        echo $descriptions[$response['employee_rating']] ?? '';
+                                    } else {
+                                        if ($response['employee_rating'] == 0) echo 'Below Standard: Below job requirements and significant improvement is needed';
+                                        elseif ($response['employee_rating'] <= 2) echo 'Below Standard: Below job requirements and significant improvement is needed';
+                                        elseif ($response['employee_rating'] <= 4) echo 'Need Improvement: Improvement is needed to meet job requirements';
+                                        elseif ($response['employee_rating'] <= 6) echo 'Satisfactory: Satisfactorily met job requirements';
+                                        elseif ($response['employee_rating'] <= 8) echo 'Good: Exceeded job requirements';
+                                        else echo 'Excellent: Far exceeded job requirements';
+                                    }
+                                    ?>
+                                </div>
+                            </div>
+                            <?php endif; ?>
+                           
+                    <?php // Show employee attachment if exists ?>
+                    <?php if ($question['response_type'] === 'attachment'): ?>
+                        <?php if ($response && $response['employee_attachment']): ?>
+                            <div class="mb-2">
+                                <i class="bi bi-paperclip me-2"></i>
+                                <strong>Employee Attachment:</strong>
+                                <a href="../employee/appraisal/download.php?file=<?php echo urlencode($response['employee_attachment']); ?>&type=employee" 
+                                   class="text-primary ms-2" target="_blank">
+                                    <?php echo htmlspecialchars(basename($response['employee_attachment'])); ?>
+                                    <i class="bi bi-download ms-1"></i>
+                                </a>
+                            </div>
                         <?php endif; ?>
                         
+                        <?php if ($response && $response['employee_comments']): ?>
+                            <small><strong>Employee Comments:</strong> <?php echo nl2br(htmlspecialchars($response['employee_comments'])); ?></small>
+                        <?php else: ?>
+                            <?php if (!$response || !$response['employee_attachment']): ?>
+                                <em class="text-muted">No attachment provided</em>
+                            <?php endif; ?>
+                        <?php endif; ?>
+                    <?php elseif ($question['response_type'] === 'checkbox'): ?>
+                        <?php if ($response && $response['employee_response']): ?>
+                            <?php 
+                            $selected_options = explode(', ', $response['employee_response']);
+                            foreach ($selected_options as $option): 
+                            ?>
+                            <span class="badge bg-light text-dark me-1 mb-1"><?php echo htmlspecialchars($option); ?></span>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <em class="text-muted">No options selected</em>
+                        <?php endif; ?>
+                    <?php else: ?>
                         <?php // Show employee response text ?>
-                        <?php if ($response['employee_response'] || $response['employee_comments']): ?>
+                        <?php if ($response && ($response['employee_response'] || $response['employee_comments'])): ?>
                             <?php if ($response['employee_response']): ?>
                                 <div class="mb-2"><?php echo nl2br(htmlspecialchars($response['employee_response'])); ?></div>
                             <?php endif; ?>
@@ -441,51 +472,47 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 <em class="text-muted">No response provided</em>
                             <?php endif; ?>
                         <?php endif; ?>
-                    </div>
-                    
-                    <div class="manager-column">
-                        <div class="column-header">Manager Assessment</div>
-                        
-                        <?php if ($question['response_type'] === 'display'): ?>
-                            <em class="text-muted">Display only - no assessment required</em>
-                        <?php else: ?>
-                        
-                        <?php if (in_array($question['response_type'], ['rating_5', 'rating_10'])): ?>
-                        <div class="mb-3">
-                            <label class="form-label">Your Score</label>
-                            <?php $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10; ?>
-                            <select class="form-select" name="manager_rating_<?php echo $question['id']; ?>" id="manager_rating_<?php echo $question['id']; ?>">
-                                <option value="">Select score...</option>
-                                <?php if ($question['response_type'] === 'rating_5'): ?>
-                                    <option value="1" <?php echo ($response['manager_rating'] ?? '') == '1' ? 'selected' : ''; ?>>1 - Poor</option>
-                                    <option value="2" <?php echo ($response['manager_rating'] ?? '') == '2' ? 'selected' : ''; ?>>2 - Below Average</option>
-                                    <option value="3" <?php echo ($response['manager_rating'] ?? '') == '3' ? 'selected' : ''; ?>>3 - Average</option>
-                                    <option value="4" <?php echo ($response['manager_rating'] ?? '') == '4' ? 'selected' : ''; ?>>4 - Good</option>
-                                    <option value="5" <?php echo ($response['manager_rating'] ?? '') == '5' ? 'selected' : ''; ?>>5 - Excellent</option>
-                                <?php else: ?>
-                                    <?php for ($i = 0; $i <= 10; $i++): ?>
-                                    <option value="<?php echo $i; ?>" <?php echo ($response['manager_rating'] ?? '') == $i ? 'selected' : ''; ?>>
-                                        <?php echo $i; ?> - <?php 
-                                        if ($i == 0) echo 'Not Applicable';
-                                        elseif ($i <= 2) echo 'Poor';
-                                        elseif ($i <= 4) echo 'Below Average';
-                                        elseif ($i <= 6) echo 'Average';
-                                        elseif ($i <= 8) echo 'Good';
-                                        else echo 'Excellent';
-                                        ?>
-                                    </option>
-                                    <?php endfor; ?>
-                                <?php endif; ?>
-                            </select>
-                        </div>
-                        <?php endif; ?>
-                        
-                        <textarea class="form-control" name="manager_comment_<?php echo $question['id']; ?>" rows="3"
-                                  placeholder="Provide your assessment and feedback..."><?php echo htmlspecialchars($response['manager_comments'] ?? ''); ?></textarea>
-                        
-                        <?php endif; ?>
-                    </div>
+                    <?php endif; ?>
                 </div>
+                        
+                        <div class="manager-column">
+                            <div class="column-header">Manager Assessment</div>
+                            
+                            <?php if (in_array($question['response_type'], ['rating_5', 'rating_10'])): ?>
+                            <div class="mb-3">
+                                <label class="form-label">Your Score</label>
+                                <?php $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10; ?>
+                                <select class="form-select" name="manager_rating_<?php echo $question['id']; ?>" id="manager_rating_<?php echo $question['id']; ?>">
+                                    <option value="">Select score...</option>
+                                    <?php if ($question['response_type'] === 'rating_5'): ?>
+                                        <option value="1" <?php echo ($response['manager_rating'] ?? '') == '1' ? 'selected' : ''; ?>>1 - Poor</option>
+                                        <option value="2" <?php echo ($response['manager_rating'] ?? '') == '2' ? 'selected' : ''; ?>>2 - Below Average</option>
+                                        <option value="3" <?php echo ($response['manager_rating'] ?? '') == '3' ? 'selected' : ''; ?>>3 - Average</option>
+                                        <option value="4" <?php echo ($response['manager_rating'] ?? '') == '4' ? 'selected' : ''; ?>>4 - Good</option>
+                                        <option value="5" <?php echo ($response['manager_rating'] ?? '') == '5' ? 'selected' : ''; ?>>5 - Excellent</option>
+                                    <?php else: ?>
+                                        <?php for ($i = 0; $i <= 10; $i++): ?>
+                                        <option value="<?php echo $i; ?>" <?php echo ($response['manager_rating'] ?? '') == $i ? 'selected' : ''; ?>>
+                                            <?php echo $i; ?> - <?php 
+                                            if ($i == 0) echo 'Below Standard: Below job requirements and significant improvement is needed';
+                                            elseif ($i <= 2) echo 'Below Standard: Below job requirements and significant improvement is needed';
+                                            elseif ($i <= 4) echo 'Need Improvement: Improvement is needed to meet job requirements';
+                                            elseif ($i <= 6) echo 'Satisfactory: Satisfactorily met job requirements';
+                                            elseif ($i <= 8) echo 'Good: Exceeded job requirements';
+                                            else echo 'Excellent: Far exceeded job requirements';
+                                            ?>
+                                        </option>
+                                        <?php endfor; ?>
+                                    <?php endif; ?>
+                                </select>
+                            </div>
+                            <?php endif; ?>
+                            
+                            <textarea class="form-control" name="manager_comment_<?php echo $question['id']; ?>" rows="3"
+                                      placeholder="Provide your assessment and feedback..."><?php echo htmlspecialchars($response['manager_comments'] ?? ''); ?></textarea>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
             <?php endforeach; ?>
             <?php endif; ?>

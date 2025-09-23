@@ -471,7 +471,7 @@ if ($section['title'] === 'Cultural Values'): ?>
                     <h6><i class="bi bi-info-circle me-2"></i>Rating Guide</h6>
                     <small class="text-muted">
 <!--                         <strong>5-Point Scale:</strong> 1=Poor, 2=Below Average, 3=Average, 4=Good, 5=Excellent<br>
- -->                        <strong>10-Point Scale:</strong> 0=N/A, 1-2=Poor, 3-4=Below Average, 5-6=Average, 7-8=Good, 9-10=Excellent
+ -->                        <strong>Performance Score:</strong> 0=N/A, <49=C, 50~59=B-, 60~74=B, 75~84=B+, >85=A<br>
                     </small>
                 </div>
             </div>
@@ -550,7 +550,7 @@ function updateScoreCalculator() {
     });
     
     // Calculate average
-    const average = answeredQuestions > 0 ? (totalScore / answeredQuestions).toFixed(1) : 0;
+    const average = answeredQuestions > 0 ? (totalScore / answeredQuestions * 10).toFixed(1) : 0;
     
     // Update display
     document.getElementById('answered-count').textContent = answeredQuestions;

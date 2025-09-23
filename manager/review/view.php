@@ -256,17 +256,7 @@ foreach ($section['questions'] as $question):
                 <div class="form-control-plaintext">
                     <?php echo nl2br(htmlspecialchars($question['description'] ?? '')); ?>
                 </div>
-            <?php else: ?>
-                <?php if ($employee_response || $employee_comments): ?>
-                    <?php if ($employee_response): ?>
-                        <div class="mb-2"><?php echo nl2br(htmlspecialchars($employee_response)); ?></div>
-                    <?php endif; ?>
-                    <?php if ($employee_comments): ?>
-                        <small><strong>Comments:</strong> <?php echo nl2br(htmlspecialchars($employee_comments)); ?></small>
-                    <?php endif; ?>
-                <?php else: ?>
-                    <em class="text-muted">No response provided</em>
-                <?php endif; ?>
+            
             <?php endif; ?>
         </div>
         
@@ -292,7 +282,7 @@ foreach ($section['questions'] as $question):
                     <em class="text-muted">No assessment provided</em>
                 <?php endif; ?>
             <?php else: ?>
-                <em class="text-muted">No assessment required for display-only content</em>
+                <em class="text-muted"></em>
             <?php endif; ?>
         </div>
     </div>
