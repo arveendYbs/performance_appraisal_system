@@ -247,46 +247,51 @@ foreach ($section['questions'] as $question):
 <div class="mb-4 pb-4 border-bottom">
     <h6 class="fw-bold mb-3"><?php echo htmlspecialchars($question['text'] ?? ''); ?></h6>
     
-    <div class="review-layout">
+  <div class="review-layout">
+    <?php if ($question['response_type'] === 'display'): ?>
+        <!-- Display-only question: show as info (no column headers, no separate employee/manager layout) -->
+       <!--  <div class="w-100 mb-3">
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                <?php echo nl2br(htmlspecialchars($question['text'])); ?>
+                <?php if (!empty($question['description'])): ?>
+                    <div class="mt-2">
+                        <?php echo formatDescriptionAsBullets($question['description']); ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div> -->
+    <?php else: ?>
+        <!-- Normal layout with employee & manager columns -->
         <div class="employee-column">
             <div class="column-header">Employee Response</div>
-            
-            <?php if (($question['response_type'] ?? '') === 'display'): ?>
-                <!-- Display-only content -->
-                <div class="form-control-plaintext">
-                    <?php echo nl2br(htmlspecialchars($question['description'] ?? '')); ?>
-                </div>
-            
-            <?php endif; ?>
+            <!-- employee response rendering here -->
         </div>
-        
+
         <div class="manager-column">
             <div class="column-header">Manager Assessment</div>
-            <?php if (($question['response_type'] ?? '') !== 'display'): ?>
-                <?php if ($manager_rating !== null || !empty($manager_comments)): ?>
-                    <?php if ($manager_rating !== null): ?>
-                        <div class="mb-3 p-2 bg-primary bg-opacity-10 rounded border-start border-primary border-3">
-                            <strong>Manager Score: </strong>
-                            <span class="badge bg-primary fs-6"><?php echo $manager_rating; ?></span>
-                            <?php 
-                            $max_rating = ($question['response_type'] ?? '') === 'rating_5' ? 5 : 10;
-                            $percentage = $max_rating > 0 ? round(($manager_rating / $max_rating) * 100) : 0;
-                            ?>
-                            <span class="text-muted">/ <?php echo $max_rating; ?> (<?php echo $percentage; ?>%)</span>
-                        </div>
-                    <?php endif; ?>
-                    <?php if (!empty($manager_comments)): ?>
-                        <?php echo nl2br(htmlspecialchars($manager_comments)); ?>
-                    <?php endif; ?>
-                <?php else: ?>
-                    <em class="text-muted">No assessment provided</em>
+            <?php if ($manager_rating !== null || !empty($manager_comments)): ?>
+                <?php if ($manager_rating !== null): ?>
+                    <div class="mb-3 p-2 bg-primary bg-opacity-10 rounded border-start border-primary border-3">
+                        <strong>Manager Score: </strong>
+                        <span class="badge bg-primary fs-6"><?php echo $manager_rating; ?></span>
+                        <?php 
+                        $max_rating = ($question['response_type'] ?? '') === 'rating_5' ? 5 : 10;
+                        $percentage = $max_rating > 0 ? round(($manager_rating / $max_rating) * 100) : 0;
+                        ?>
+                        <span class="text-muted">/ <?php echo $max_rating; ?> (<?php echo $percentage; ?>%)</span>
+                    </div>
+                <?php endif; ?>
+                <?php if (!empty($manager_comments)): ?>
+                    <?php echo nl2br(htmlspecialchars($manager_comments)); ?>
                 <?php endif; ?>
             <?php else: ?>
-                <em class="text-muted"></em>
+                <em class="text-muted">No assessment provided</em>
             <?php endif; ?>
         </div>
-    </div>
+    <?php endif; ?>
 </div>
+
 <?php endforeach; ?>
         <?php else: ?>
         <!-- Regular Questions Display -->

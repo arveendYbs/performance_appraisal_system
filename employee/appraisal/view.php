@@ -371,15 +371,13 @@ try {
             
             <?php if ($question['response_type'] === 'display'): ?>
                 <!-- Display-only questions - show as information only -->
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <?php echo nl2br(htmlspecialchars($question['text'])); ?>
+                
                     <?php if ($question['description']): ?>
                         <div class="mt-2">
                             <?php echo formatDescriptionAsBullets($question['description']); ?>
                         </div>
                     <?php endif; ?>
-                </div>
+            
             <?php else: ?>
                 <!-- Regular questions with employee/manager responses -->
                 <div class="row">
