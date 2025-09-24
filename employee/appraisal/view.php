@@ -274,161 +274,88 @@ try {
             Section <?php echo $section_index + 1; ?>: <?php echo htmlspecialchars($section['title']); ?>
         </h5>
         <?php if ($section['description']): ?>
-        <small class="text-muted"><?php echo htmlspecialchars($section['description']); ?></small>
+            <small class="text-muted"><?php echo htmlspecialchars($section['description']); ?></small>
         <?php endif; ?>
     </div>
+
     <div class="card-body">
-        <?php if ($section['title'] === 'Cultural Values'): ?>
-        <!-- Cultural Values section -->
-        <div class="row">
-            <?php foreach ($section['questions'] as $question): 
-                $question_id = $question['id'];
-                $existing_response = $responses[$question_id] ?? [];
-                $response_value = $existing_response['employee_response'] ?? '';
-                
-                // Handle display questions in Cultural Values
-                if ($question['response_type'] === 'display') {
-                    ?>
-                    <div class="col-12 mb-4">
-                        
-                            <strong><?php echo htmlspecialchars($question['text']); ?></strong>
-                            <?php if ($question['description']): ?>
-                                <div class="mt-2">
-                                    <?php echo formatDescriptionAsBullets($question['description']); ?>
-                                </div>
-                            <?php endif; ?>
-                      <br></br>
-                    <?php
-                    continue;
-                }
-                
-                // Skip overall comments question - it will be shown at the bottom
-                if (stripos($question['text'], 'Overall Comments') !== false) continue;
-            ?>
-            <br></br>
-            <div class="col-md-6 mb-4">
-                <div class="border rounded p-3 h-100">
-                    <div class="d-flex align-items-center mb-2">
-                        <?php
-                        $parts = explode(' - ', $question['text']);
-                        $code = $parts[0] ?? '';
-                        $title = $parts[1] ?? $question['text'];
-                        ?>
-                        <span class="badge bg-primary me-2" style="width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">
-                            <?php echo htmlspecialchars($code); ?>
-                        </span>
-                        <strong><?php echo htmlspecialchars($title); ?></strong>
-                    </div>
-                    
-                    <p class="small text-muted mb-3">
-                        <?php echo htmlspecialchars($question['description'] ?? ''); ?>
-                    </p>
-                    
-                    <div class="bg-light p-3 rounded">
-                        <?php if ($response_value): ?>
-                            <?php echo nl2br(htmlspecialchars($response_value)); ?>
-                        <?php else: ?>
-                            <em class="text-muted">No response provided</em>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-            <?php endforeach; ?>
-        </div>
-        
-        <!-- Show overall cultural values comments if exists -->
-        <?php
-        $overall_question = array_filter($section['questions'], function($q) {
-            return stripos($q['text'], 'Overall Comments') !== false;
-        });
-        $overall_question = reset($overall_question);
-        if ($overall_question):
-            $overall_response = $responses[$overall_question['id']] ?? [];
+        <?php 
+        $overall_question = null;
+        $overall_response = [];
+
+        foreach ($section['questions'] as $question): 
+            $response = $responses[$question['id']] ?? [];
+
+            // For Cultural Values: defer "Overall Comments"
+            if ($section['title'] === 'Cultural Values' && stripos($question['text'], 'Overall Comments') !== false) {
+                $overall_question = $question;
+                $overall_response = $response;
+                continue;
+            }
         ?>
-        <div class="mt-4">
-            <h6><strong>Overall Comments on Cultural Values</strong></h6>
-            <div class="bg-light p-3 rounded">
-                <?php if (!empty($overall_response['employee_response'])): ?>
-                    <?php echo nl2br(htmlspecialchars($overall_response['employee_response'])); ?>
-                <?php else: ?>
-                    <em class="text-muted">No overall comments provided</em>
+        
+        <?php if ($question['response_type'] === 'display'): ?>
+            <!-- Display-only info -->
+            <div class="mb-3">
+                <strong><?php echo htmlspecialchars($question['text']); ?></strong>
+                <?php if (!empty($question['description'])): ?>
+                    <div class="mt-2">
+                        <?php echo formatDescriptionAsBullets($question['description']); ?>
+                    </div>
                 <?php endif; ?>
             </div>
-        </div>
-        <?php endif; ?>
-        
+
         <?php else: ?>
-        <!-- Regular Questions Display -->
-        <?php foreach ($section['questions'] as $question): 
-            $response = $responses[$question['id']] ?? null;
-        ?>
-        <div class="mb-4 pb-4 border-bottom">
-            <h6 class="fw-bold mb-3"><?php echo htmlspecialchars($question['text']); ?></h6>
-            
-            <?php if ($question['description']): ?>
-            <div class="text-muted small mb-3"><?php echo formatDescriptionAsBullets($question['description']); ?></div>
-            <?php endif; ?>
-            
-            <?php if ($question['response_type'] === 'display'): ?>
-                <!-- Display-only questions - show as information only -->
-                
-                    <?php if ($question['description']): ?>
-                        <div class="mt-2">
-                            <?php echo formatDescriptionAsBullets($question['description']); ?>
-                        </div>
-                    <?php endif; ?>
-            
-            <?php else: ?>
-                <!-- Regular questions with employee/manager responses -->
+            <!-- Normal side-by-side layout -->
+            <div class="mb-4 pb-4 border-bottom">
+                <h6 class="fw-bold mb-3"><?php echo htmlspecialchars($question['text']); ?></h6>
+
                 <div class="row">
+                    <!-- Employee side -->
                     <div class="col-md-6">
                         <h6 class="text-primary">Your Response:</h6>
-                        
-                        <?php // Show employee rating if it exists ?>
-                        <?php if (in_array($question['response_type'], ['rating_5', 'rating_10']) && 
-                                  isset($response['employee_rating']) && $response['employee_rating'] !== null): ?>
-                        <div class="mb-3 p-2 bg-primary bg-opacity-10 rounded border-start border-primary border-3">
-                            <strong>Your Score: </strong>
-                            <span class="badge bg-primary fs-6"><?php echo $response['employee_rating']; ?></span>
-                            <?php 
-                            $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10;
-                            $percentage = round(($response['employee_rating'] / $max_rating) * 100);
-                            ?>
-                            <span class="text-muted">/ <?php echo $max_rating; ?> (<?php echo $percentage; ?>%)</span>
-                            
-                            <?php // Show rating description ?>
-                            <div class="small text-muted mt-1">
-                                <?php
-                                if ($question['response_type'] === 'rating_5') {
-                                    $descriptions = [1 => 'Poor', 2 => 'Below Average', 3 => 'Average', 4 => 'Good', 5 => 'Excellent'];
-                                    echo $descriptions[$response['employee_rating']] ?? '';
-                                } else {
-                                    if ($response['employee_rating'] == 0) echo 'Not Applicable';
-                                    elseif ($response['employee_rating'] <= 2) echo 'Poor';
-                                    elseif ($response['employee_rating'] <= 4) echo 'Below Average';
-                                    elseif ($response['employee_rating'] <= 6) echo 'Average';
-                                    elseif ($response['employee_rating'] <= 8) echo 'Good';
-                                    else echo 'Excellent';
-                                }
-                                ?>
-                            </div>
-                        </div>
-                        <?php endif; ?>
-                        
+                                <?php if (in_array($question['response_type'], ['rating_5', 'rating_10']) && 
+                                            isset($response['employee_rating']) && $response['employee_rating'] !== null): ?>
+                                        <div class="mb-3 p-2 bg-primary bg-opacity-10 rounded border-start border-primary border-3">
+                                            <strong>Your Score: </strong>
+                                            <span class="badge bg-primary fs-6"><?php echo $response['employee_rating']; ?></span>
+                                            <?php 
+                                            $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10;
+                                            $percentage = round(($response['employee_rating'] / $max_rating) * 100);
+                                            ?>
+                                            <span class="text-muted">/ <?php echo $max_rating; ?> (<?php echo $percentage; ?>%)</span>
+
+                                            <div class="small text-muted mt-1">
+                                                <?php
+                                                if ($question['response_type'] === 'rating_5') {
+                                                    $descriptions = [1 => 'Poor', 2 => 'Below Average', 3 => 'Average', 4 => 'Good', 5 => 'Excellent'];
+                                                    echo $descriptions[$response['employee_rating']] ?? '';
+                                                } else {
+                                                    if ($response['employee_rating'] == 0) echo 'Not Applicable';
+                                                    elseif ($response['employee_rating'] <= 2) echo 'Poor';
+                                                    elseif ($response['employee_rating'] <= 4) echo 'Below Average';
+                                                    elseif ($response['employee_rating'] <= 6) echo 'Average';
+                                                    elseif ($response['employee_rating'] <= 8) echo 'Good';
+                                                    else echo 'Excellent';
+                                                }
+                                                ?>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
                         <div class="bg-light p-3 rounded">
                             <?php if ($question['response_type'] === 'checkbox'): ?>
-                                <?php if ($response && $response['employee_response']): ?>
-                                    <?php 
-                                    $selected_options = explode(', ', $response['employee_response']);
-                                    foreach ($selected_options as $option): 
-                                    ?>
-                                    <span class="badge bg-info me-1 mb-1"><?php echo htmlspecialchars($option); ?></span>
+                                <?php if (!empty($response['employee_response'])): ?>
+                                    <?php foreach (explode(', ', $response['employee_response']) as $option): ?>
+                                        <span class="badge bg-info me-1 mb-1"><?php echo htmlspecialchars($option); ?></span>
                                     <?php endforeach; ?>
                                 <?php else: ?>
                                     <em class="text-muted">No options selected</em>
                                 <?php endif; ?>
+                                
+                            
+
                             <?php elseif ($question['response_type'] === 'attachment'): ?>
-                                <?php if ($response && $response['employee_attachment']): ?>
+                                <?php if (!empty($response['employee_attachment'])): ?>
                                     <div class="mb-2">
                                         <i class="bi bi-paperclip me-2"></i>
                                         <strong>Attachment:</strong>
@@ -439,19 +366,18 @@ try {
                                         </a>
                                     </div>
                                 <?php endif; ?>
-                                <?php if ($response && $response['employee_comments']): ?>
+                                <?php if (!empty($response['employee_comments'])): ?>
                                     <small><strong>Comments:</strong> <?php echo nl2br(htmlspecialchars($response['employee_comments'])); ?></small>
                                 <?php else: ?>
-                                    <?php if (!$response || !$response['employee_attachment']): ?>
-                                        <em class="text-muted">No attachment provided</em>
-                                    <?php endif; ?>
+                                    <em class="text-muted">No attachment provided</em>
                                 <?php endif; ?>
+
                             <?php else: ?>
-                                <?php if ($response && ($response['employee_response'] || $response['employee_comments'])): ?>
-                                    <?php if ($response['employee_response']): ?>
+                                <?php if (!empty($response['employee_response']) || !empty($response['employee_comments'])): ?>
+                                    <?php if (!empty($response['employee_response'])): ?>
                                         <p class="mb-2"><?php echo nl2br(htmlspecialchars($response['employee_response'])); ?></p>
                                     <?php endif; ?>
-                                    <?php if ($response['employee_comments']): ?>
+                                    <?php if (!empty($response['employee_comments'])): ?>
                                         <small><strong>Comments:</strong> <?php echo nl2br(htmlspecialchars($response['employee_comments'])); ?></small>
                                     <?php endif; ?>
                                 <?php else: ?>
@@ -460,46 +386,96 @@ try {
                             <?php endif; ?>
                         </div>
                     </div>
-                    
+
+                    <!-- Manager side -->
                     <div class="col-md-6">
                         <h6 class="text-success">Manager's Assessment:</h6>
-                        
-                        <?php if ($response && ($response['manager_rating'] !== null || $response['manager_comments'] || $response['manager_response'])): ?>
-                            <?php if ($response['manager_rating'] !== null): ?>
-                            <div class="mb-2">
-                                <span class="badge bg-success me-2">Score: <?php echo $response['manager_rating']; ?></span>
-                                <span class="text-muted">
+
+                            <?php if (in_array($question['response_type'], ['rating_5', 'rating_10']) && 
+                                    isset($response['manager_rating']) && $response['manager_rating'] !== null): ?>
+                                <div class="mb-3 p-2 bg-success bg-opacity-10 rounded border-start border-success border-3">
+                                    <strong>Manager Score: </strong>
+                                    <span class="badge bg-success fs-6"><?php echo $response['manager_rating']; ?></span>
                                     <?php 
                                     $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10;
                                     $percentage = round(($response['manager_rating'] / $max_rating) * 100);
-                                    echo "({$percentage}%)";
                                     ?>
-                                </span>
-                            </div>
+                                    <span class="text-muted">/ <?php echo $max_rating; ?> (<?php echo $percentage; ?>%)</span>
+
+                                    <div class="small text-muted mt-1">
+                                        <?php
+                                        if ($question['response_type'] === 'rating_5') {
+                                            $descriptions = [1 => 'Poor', 2 => 'Below Average', 3 => 'Average', 4 => 'Good', 5 => 'Excellent'];
+                                            echo $descriptions[$response['manager_rating']] ?? '';
+                                        } else {
+                                            if ($response['manager_rating'] == 0) echo 'Not Applicable';
+                                            elseif ($response['manager_rating'] <= 2) echo 'Poor';
+                                            elseif ($response['manager_rating'] <= 4) echo 'Below Average';
+                                            elseif ($response['manager_rating'] <= 6) echo 'Average';
+                                            elseif ($response['manager_rating'] <= 8) echo 'Good';
+                                            else echo 'Excellent';
+                                        }
+                                        ?>
+                                    </div>
+                                </div>
                             <?php endif; ?>
+
+
                             
-                            <div class="bg-success bg-opacity-10 p-3 rounded border-start border-success border-3">
-                                <?php if ($response['manager_response']): ?>
-                                    <p class="mb-2"><?php echo nl2br(htmlspecialchars($response['manager_response'])); ?></p>
-                                <?php endif; ?>
-                                <?php if ($response['manager_comments']): ?>
-                                    <p class="mb-0"><?php echo nl2br(htmlspecialchars($response['manager_comments'])); ?></p>
-                                <?php endif; ?>
-                            </div>
-                        <?php else: ?>
+                            <!-- Manager Comments Box (balanced with employee side) -->
                             <div class="bg-light p-3 rounded">
-                                <em class="text-muted">No manager feedback yet</em>
+                                <?php if (!empty($response['manager_comments']) || !empty($response['manager_response'])): ?>
+                                    <?php if (!empty($response['manager_response'])): ?>
+                                        <p class="mb-2"><?php echo nl2br(htmlspecialchars($response['manager_response'])); ?></p>
+                                    <?php endif; ?>
+                                    <?php if (!empty($response['manager_comments'])): ?>
+                                        <p class="mb-0"><?php echo nl2br(htmlspecialchars($response['manager_comments'])); ?></p>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <em class="text-muted">No manager feedback yet</em>
+                                <?php endif; ?>
                             </div>
+                        
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+        <?php endforeach; ?>
+
+        <!-- Cultural Values Overall Comments (side-by-side) -->
+        <?php if ($section['title'] === 'Cultural Values' && $overall_question): ?>
+        <div class="mt-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6><strong>Your Overall Comments on Cultural Values</strong></h6>
+                    <div class="bg-light p-3 rounded">
+                        <?php if (!empty($overall_response['employee_response'])): ?>
+                            <?php echo nl2br(htmlspecialchars($overall_response['employee_response'])); ?>
+                        <?php else: ?>
+                            <em class="text-muted">No overall comments provided</em>
                         <?php endif; ?>
                     </div>
                 </div>
-            <?php endif; ?>
+
+                <div class="col-md-6">
+                    <h6><strong>Manager's Feedback on Cultural Values</strong></h6>
+                    <?php if (!empty($overall_response['manager_comments'])): ?>
+                        <div class="bg-success bg-opacity-10 p-3 rounded border-start border-success border-3">
+                            <?php echo nl2br(htmlspecialchars($overall_response['manager_comments'])); ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="bg-light p-3 rounded">
+                            <em class="text-muted">No manager feedback yet</em>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
         </div>
-        <?php endforeach; ?>
         <?php endif; ?>
     </div>
 </div>
 <?php endforeach; ?>
+
 
 <!-- Action Buttons -->
 <?php if ($appraisal_data['status'] === 'draft'): ?>

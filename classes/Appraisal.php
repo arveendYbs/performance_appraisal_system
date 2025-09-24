@@ -100,8 +100,8 @@ class Appraisal {
     public function getAllResponsesForReview() {
         $query = "SELECT fq.id as question_id, fq.question_text, fq.response_type, fq.options,
                          fs.section_title, fs.section_order, fq.question_order,
-                         r.employee_response, r.employee_rating, r.employee_comments,
-                         r.manager_response, r.manager_rating, r.manager_comments
+                         r.employee_response, r.employee_rating, r.employee_comments, r.employee_attachment,
+                         r.manager_response, r.manager_rating, r.manager_comments, r.manager_attachment
                   FROM form_questions fq
                   JOIN form_sections fs ON fq.section_id = fs.id
                   JOIN appraisals a ON fs.form_id = a.form_id

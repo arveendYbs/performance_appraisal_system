@@ -28,7 +28,7 @@ try {
     $form_structure = $form->getFormStructure('employee');
     error_log("Original Form Structure: " . print_r($form_structure, true));
 
-     // Simple visibility check function
+    /*  // Simple visibility check function
     function isSectionVisibleToEmployee($section_id, $db) {
         $query = "SELECT visible_to FROM form_sections WHERE id = ?";
         $stmt = $db->prepare($query);
@@ -36,7 +36,7 @@ try {
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         $visible_to = $result['visible_to'] ?? 'both';
         return ($visible_to === 'both' || $visible_to === 'employee');
-    }
+    } */
     // Filter sections by visibility (default to both if not set)
     $filtered_sections = [];
     foreach ($form_structure as $section) {
@@ -209,10 +209,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     <?php foreach ($form_structure as $section_index => $section): ?>
         <?php 
-    // Check if section is visible to employee
+/*     // Check if section is visible to employee
     if (!isSectionVisibleToEmployee($section['id'], $db)) {
         continue; // Skip this section for employee
-    }
+    } */
     ?>
     <div class="card mb-4">
         <div class="card-header">

@@ -45,9 +45,9 @@ try {
     // Get form structure
     $form = new Form($db);
     $form->id = $appraisal_data['form_id'];
-    $form_structure = $form->getFormStructure();
+    $form_structure = $form->getFormStructure('reviewer');
 
-     // Simple visibility check function for manager
+     /* // Simple visibility check function for manager
     function isSectionVisibleToManager($section_id, $db) {
         $query = "SELECT visible_to FROM form_sections WHERE id = ?";
         $stmt = $db->prepare($query);
@@ -56,7 +56,7 @@ try {
         $visible_to = $result['visible_to'] ?? 'both';
         return ($visible_to === 'both' || $visible_to === 'reviewer');
     }
-    
+     */
     // Get existing responses
     $appraisal = new Appraisal($db);
     $appraisal->id = $appraisal_id;
@@ -291,13 +291,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     <?php foreach ($form_structure as $section_index => $section): ?>
 
-    <?php 
-    // Check if section is visible to manager/reviewer
-    if (!isSectionVisibleToManager($section['id'], $db)) {
-        continue; // Skip this section for manager
-    }
-    ?>
-
+   
     <div class="card mb-4">
         <div class="card-header">
             <h5 class="mb-0">
@@ -309,70 +303,108 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <?php endif; ?>
         </div>
         <div class="card-body">
-            <?php if ($section['title'] === 'Cultural Values'): ?>
+    <?php if ($section['title'] === 'Cultural Values'): ?>
             <!-- Cultural Values Review -->
             <div class="row">
-   <?php 
-   foreach ($section['questions'] as $question): 
-    $question_id = $question['id'];
-    $response = $responses[$question_id] ?? [];
-    $response_type = $question['response_type'] ?? '';
-?>
-<div class="mb-4 pb-4 border-bottom">
-    <h6 class="fw-bold mb-3"><?php echo htmlspecialchars($question['text']); ?></h6>
-    
-    <?php if ($question['description']): ?>
-                <p class="text-muted small mb-3"><?php echo formatDescriptionAsBullets($question['description']); ?></p>
-    <?php endif; ?>
-               
-    
-    <div class="review-layout">
-        <div class="employee-column">
-<?php if ($response_type !== 'display'): ?>
-    <div class="column-header">Employee Response</div>
-<?php endif; ?>
-            
-            <?php if ($question['response_type'] === 'display'): ?>
-                    <!-- Display only question - no employee/manager response needed -->
-                  <!--   <div class="alert alert-info">
-                        <i class="bi bi-info-circle me-2"></i>
-                        Information only - no assessment required
-                    </div> -->
-                <?php else: ?>
-                <?php // Show employee response text ?>
-                <?php if ($response['employee_response'] || $response['employee_comments']): ?>
-                    <?php if ($response['employee_response']): ?>
-                        <div class="mb-2"><?php echo nl2br(htmlspecialchars($response['employee_response'])); ?></div>
+                <?php 
+                foreach ($section['questions'] as $question): 
+                    $question_id = $question['id'];
+                    $response = $responses[$question_id] ?? [];
+                    $response_type = $question['response_type'] ?? '';
+                    
+                    // Handle overall comments separately
+                    if (stripos($question['text'], 'Overall Comments') !== false) {
+                        continue; // Skip here, handle at the end
+                    }
+                ?>
+                <div class="mb-4 pb-4 border-bottom">
+                    <h6 class="fw-bold mb-3"><?php echo htmlspecialchars($question['text']); ?></h6>
+                    
+                    <?php if ($question['description']): ?>
+                    <p class="text-muted small mb-3"><?php echo formatDescriptionAsBullets($question['description']); ?></p>
                     <?php endif; ?>
-                    <?php if ($response['employee_comments']): ?>
-                        <small><strong>Comments:</strong> <?php echo nl2br(htmlspecialchars($response['employee_comments'])); ?></small>
+                           
+                    <?php if ($question['response_type'] === 'display'): ?>
+                        <!-- Display questions - show only title and description -->
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <?php echo nl2br(htmlspecialchars($question['text'])); ?>
+                            <?php if ($question['description']): ?>
+                                <div class="mt-2">
+                                    <?php echo formatDescriptionAsBullets($question['description']); ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    <?php else: ?>
+                        <!-- Regular Cultural Values question - show only title and description -->
+                        <div class="alert alert-secondary">
+                            <strong><?php echo htmlspecialchars($question['text']); ?></strong>
+                            <?php if ($question['description']): ?>
+                                <div class="mt-2 small text-muted">
+                                    <?php echo formatDescriptionAsBullets($question['description']); ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <!-- Manager Feedback for Cultural Values -->
+                        <div class="mt-3">
+                            <label class="form-label fw-bold">Manager Feedback</label>
+                            <textarea class="form-control" 
+                                    name="manager_comment_<?php echo $question_id; ?>" 
+                                    rows="3"
+                                    placeholder="Provide your feedback on this cultural value..."
+                            ><?php echo htmlspecialchars($response['manager_comments'] ?? ''); ?></textarea>
+                        </div>
                     <?php endif; ?>
-                <?php else: ?>
-                    <em class="text-muted">No response provided</em>
+                </div>
+                <?php endforeach; ?>
+                
+                <!-- Handle Cultural Values Overall Comments -->
+                <?php
+                $overall_question = array_filter($section['questions'], function($q) {
+                    return stripos($q['text'], 'Overall Comments') !== false;
+                });
+                $overall_question = reset($overall_question);
+                if ($overall_question):
+                    $overall_response = $responses[$overall_question['id']] ?? [];
+                ?>
+                <div class="mt-4">
+                    <h6><strong>Overall Comments on Cultural Values</strong></h6>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label text-primary">Employee's Overall Comments:</label>
+                            <div class="bg-light p-3 rounded">
+                                <?php if (!empty($overall_response['employee_response'])): ?>
+                                    <?php echo nl2br(htmlspecialchars($overall_response['employee_response'])); ?>
+                                <?php else: ?>
+                                    <em class="text-muted">No overall comments provided</em>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label text-success">Your Feedback on Overall Cultural Values:</label>
+                            <textarea class="form-control" 
+                                    name="manager_comment_<?php echo $overall_question['id']; ?>" 
+                                    rows="4"
+                                    placeholder="Provide your overall feedback on the employee's demonstration of cultural values..."
+                            ><?php echo htmlspecialchars($overall_response['manager_comments'] ?? ''); ?></textarea>
+                        </div>
+                    </div>
+                </div>
                 <?php endif; ?>
-            <?php endif; ?>
-        </div>
-        
-        <div class="manager-column">
-<?php if ($response_type !== 'display'): ?>
-    <div class="column-header">Reviewer Response</div>
-<?php endif; ?>
-            <?php if ($response_type !== 'display' && $question_id): ?>
-                <textarea class="form-control" 
-                        name="manager_comment_<?php echo $question_id; ?>" 
-                        rows="3"
-                        placeholder="Provide your feedback on this cultural value..."
-                ><?php echo htmlspecialchars($response['manager_comments'] ?? ''); ?></textarea>
-            <?php endif; ?>
-        </div>
-    </div>
-</div>
-<?php endforeach; ?>
-            <?php else: ?>
+            </div>
+       
+    
+   
+                                    
+    
+        <?php else: ?>
             <!-- Performance Assessment and Other Sections -->
-          <?php foreach ($section['questions'] as $question): 
-    $response = $responses[$question['id']] ?? null;
-?>
+        <?php foreach ($section['questions'] as $question): 
+            $response = $responses[$question['id']] ?? null;
+        ?>
 <div class="mb-4 pb-4 border-bottom">
     <h6 class="fw-bold mb-3"><?php echo htmlspecialchars($question['text']); ?></h6>
     <?php if ($question['description']): ?>
@@ -414,7 +446,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         case 'checkbox': ?>
             <div class="review-layout">
                 <div class="employee-column">
-                    <div class="column-header">Employee Response</div>
+                    <div class="column-header">Employee Response:</div>
 
                     <?php if ($response && $response['employee_response']): ?>
                         <?php 
@@ -428,7 +460,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </div>
 
                 <div class="manager-column">
-                    <div class="column-header">Manager Assessment</div>
+                    <div class="column-header">Manager Assessment:</div>
                     <textarea class="form-control" name="manager_comment_<?php echo $question['id']; ?>" rows="3"
                               placeholder="Provide your assessment and feedback..."><?php echo htmlspecialchars($response['manager_comments'] ?? ''); ?></textarea>
                 </div>
@@ -439,7 +471,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         case 'rating_10': ?>
             <div class="review-layout">
                 <div class="employee-column">
-                    <div class="column-header">Employee Response</div>
+                    <div class="column-header">Employee Response:</div>
 
                     <?php if ($response && isset($response['employee_rating'])): ?>
                         <div class="mb-3 p-2 bg-info bg-opacity-10 rounded border-start border-info border-3">
@@ -471,7 +503,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </div>
 
                 <div class="manager-column">
-                    <div class="column-header">Manager Assessment</div>
+                    <div class="column-header">Manager Assessment:</div>
                     <div class="mb-3">
                         <label class="form-label">Your Score</label>
                         <?php $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10; ?>
@@ -508,7 +540,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         default: ?>
             <div class="review-layout">
                 <div class="employee-column">
-                    <div class="column-header">Employee Response</div>
+                    <div class="column-header">Employee Response:</div>
                     <?php if ($response && ($response['employee_response'] || $response['employee_comments'])): ?>
                         <?php if ($response['employee_response']): ?>
                             <div class="mb-2"><?php echo nl2br(htmlspecialchars($response['employee_response'])); ?></div>
@@ -522,7 +554,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </div>
 
                 <div class="manager-column">
-                    <div class="column-header">Manager Assessment</div>
+                    <div class="column-header">Manager Assessment:</div>
                     <textarea class="form-control" name="manager_comment_<?php echo $question['id']; ?>" rows="3"
                               placeholder="Provide your assessment and feedback..."><?php echo htmlspecialchars($response['manager_comments'] ?? ''); ?></textarea>
                 </div>

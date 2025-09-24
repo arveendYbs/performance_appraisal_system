@@ -118,20 +118,25 @@ class Form {
         return $stmt->execute();
     }
 
-    /**
+   /**
      * Get form sections with questions
      */
-    public function getFormStructure() {
+    public function getFormStructure($viewer_type = 'both') {
         $query = "SELECT fs.id as section_id, fs.section_title, fs.section_description, fs.section_order,
+                         fs.visible_to,
                          fq.id as question_id, fq.question_text, fq.question_description,
                          fq.response_type, fq.options, fq.is_required, fq.question_order
                   FROM form_sections fs
                   LEFT JOIN form_questions fq ON fs.id = fq.section_id AND fq.is_active = 1
                   WHERE fs.form_id = :form_id AND fs.is_active = 1
+                  AND (fs.visible_to = 'both' 
+                       OR fs.visible_to = :viewer_type
+                       OR (:viewer_type = 'both' AND fs.visible_to IN ('employee', 'reviewer')))
                   ORDER BY fs.section_order, fq.question_order";
 
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':form_id', $this->id);
+        $stmt->bindParam(':viewer_type', $viewer_type);
         $stmt->execute();
 
         $structure = [];
@@ -144,6 +149,7 @@ class Form {
                     'title' => $row['section_title'],
                     'description' => $row['section_description'],
                     'order' => $row['section_order'],
+                    'visible_to' => $row['visible_to'],
                     'questions' => []
                 ];
             }
@@ -154,8 +160,7 @@ class Form {
                     'text' => $row['question_text'],
                     'description' => $row['question_description'],
                     'response_type' => $row['response_type'],
-                    'options' => !is_null($row['options']) ? json_decode($row['options'], true) : [],
-                
+                    'options' => !is_null($row['options']) ? json_decode($row['options'], true) : null,
                     'is_required' => $row['is_required'],
                     'order' => $row['question_order']
                 ];
@@ -164,7 +169,6 @@ class Form {
 
         return array_values($structure);
     }
-
     /**
      * Get form by user role
      */
