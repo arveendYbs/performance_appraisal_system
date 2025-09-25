@@ -309,6 +309,11 @@ try {
             <!-- Normal side-by-side layout -->
             <div class="mb-4 pb-4 border-bottom">
                 <h6 class="fw-bold mb-3"><?php echo htmlspecialchars($question['text']); ?></h6>
+                <?php if (!empty($question['description'])): ?>
+                    <div class="mt-2">
+                        <?php echo formatDescriptionAsBullets($question['description']); ?>
+                    </div>
+                <?php endif; ?>
 
                 <div class="row">
                     <!-- Employee side -->

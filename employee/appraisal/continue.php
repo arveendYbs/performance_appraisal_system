@@ -236,12 +236,17 @@ if ($section['title'] === 'Cultural Values'): ?>
     $existing_response = $existing_responses[$question_id] ?? [];
     $response_value = $existing_response['employee_response'] ?? '';
 ?>
-    <div class="mb-4">
-        <label class="form-label">
-            <?php echo htmlspecialchars($question['text']); ?>
-            <?php if ($question['is_required']): ?>
-                <span class="text-danger">*</span>
-            <?php endif; ?>
+    <div class="mb-4 question-item">
+            <label class="form-label fw-bold">
+                    <?php echo htmlspecialchars($question['text']); ?>
+                    <?php if ($question['is_required']): ?><span class="text-danger">*</span><?php endif; ?>
+                </label>
+                
+                  <?php if ($question['description']): ?>
+                <div class="text-muted  mb-2">
+                    <?php echo formatDescriptionAsBullets($question['description']); ?>
+                </div>
+                <?php endif; ?>
         </label>
         
         <?php if ($question['response_type'] === 'display'): ?>
@@ -270,7 +275,7 @@ if ($section['title'] === 'Cultural Values'): ?>
 <?php endforeach; ?>
 
     <!-- Overall Comments -->
-    <?php
+   <!--  <?php
     // Find the overall comments question
     $overall_question = array_filter($section['questions'], function($q) {
         return $q['text'] === 'Overall Comments';
@@ -288,7 +293,7 @@ if ($section['title'] === 'Cultural Values'): ?>
                 <?php echo $overall_question['is_required'] ? 'required' : ''; ?>
         ><?php echo htmlspecialchars($existing_overall['employee_response'] ?? ''); ?></textarea>
     </div>
-    <?php endif; ?>
+    <?php endif; ?> -->
 <?php else: ?>
     <!-- Regular questions section remains the same -->
         
@@ -303,7 +308,7 @@ if ($section['title'] === 'Cultural Values'): ?>
                 </label>
                 
                   <?php if ($question['description']): ?>
-                <div class="text-muted small mb-2">
+                <div class="text-muted  mb-2">
                     <?php echo formatDescriptionAsBullets($question['description']); ?>
                 </div>
                 <?php endif; ?>
@@ -458,7 +463,7 @@ if ($section['title'] === 'Cultural Values'): ?>
                     <h6><i class="bi bi-calculator me-2"></i>Performance Score Summary</h6>
                     <div id="score-summary">
                         <div class="mb-2">
-                            <strong>Rating Questions Answered:</strong> 
+                            <strong>Performance Assesment Question Answered:</strong> 
                             <span id="answered-count">0</span> / <span id="total-questions">0</span>
                         </div>
                         <div class="mb-2">
@@ -538,7 +543,7 @@ function updateScoreCalculator() {
     }); */
     
     // Count rating_10 questions
-    document.querySelectorAll('select[name^="rating_"]').forEach(function(select) {
+    document.querySelectorAll('select[name^="manager_ra"]').forEach(function(select) {
         totalQuestions++;
         const value = parseInt(select.value) || 0;
         if (value > 0) {
