@@ -136,7 +136,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $comment_key = 'manager_comment_' . $question_id;
                 $comment = $_POST[$comment_key] ?? null;
                 $attachment = $uploaded_files[$question_id] ?? null;
-                
+
+                // Handle checkbox arrays
+                if (is_array($value)) {
+                    $response_value = implode(', ', $value);
+                } else {
+                    $response_value = sanitize($value);
+                }
+
+                  // Get associated comment if exists
+        $comment = sanitize($_POST['manager_comment_' . $question_id] ?? '');
+        $attachment = $uploaded_files[$question_id] ?? null;
+
                 // Check if response exists
                 $check_query = "SELECT * FROM responses WHERE appraisal_id = ? AND question_id = ?";
                 $check_stmt = $db->prepare($check_query);
@@ -523,13 +534,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             </div>
                             <?php endif; ?>
                             
-                            <?php // Show employee attachment if exists ?>
+                            <?php // Show employee attachment if exists ../../employee/appraisal/download.php ?>
                             <?php if ($question['response_type'] === 'attachment'): ?>
                                 <?php if ($response && $response['employee_attachment']): ?>
                                     <div class="mb-2">
                                         <i class="bi bi-paperclip me-2"></i>
                                         <strong>Employee Attachment:</strong>
-                                        <a href="../../employee/appraisal/download.php?file=<?php echo urlencode($response['employee_attachment']); ?>&type=employee" 
+                                        <a href="download.php?file=<?php echo urlencode($response['employee_attachment']); ?>&type=employee" 
                                            class="text-primary ms-2" target="_blank">
                                             <?php echo htmlspecialchars(basename($response['employee_attachment'])); ?>
                                             <i class="bi bi-download ms-1"></i>
@@ -729,7 +740,7 @@ function updateScoreCalculator() {
     }); */
     
     // Count rating_10 questions
-    document.querySelectorAll('select[name^="rating_"]').forEach(function(select) {
+    document.querySelectorAll('select[name^="manager_"]').forEach(function(select) {
         totalQuestions++;
         const value = parseInt(select.value) || 0;
         if (value > 0) {
@@ -766,7 +777,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // For select dropdowns
-    document.querySelectorAll('select[name^="rating_"]').forEach(function(select) {
+    document.querySelectorAll('select[name^="manager_"]').forEach(function(select) {
         select.addEventListener('change', updateScoreCalculator);
     });
 });

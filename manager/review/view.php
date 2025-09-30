@@ -260,16 +260,70 @@ try {
                     </div>
                 <?php endif; ?>
             </div>
+        <?php elseif ($section['visible_to'] === 'reviewer'): ?>
+            <!-- REVIEWER-ONLY SECTIONS (Pass Probation, etc.) - Show manager responses -->
+            <div class="mb-4 pb-4 border-bottom">
+                <h6 class="fw-bold mb-3">
+                    <?php echo htmlspecialchars($question['text']); ?>
+                    <span class="badge bg-warning ms-2">Manager Assessment</span>
+                </h6>
 
+                <?php if ($question['description']): ?>
+                    <p class="text-muted small mb-3"><?php echo formatDescriptionAsBullets($question['description']); ?></p>
+                <?php endif; ?>
+
+                <div class="row">
+                    <div class="col-md-8">
+                        <label class="form-label text-success fw-bold">Manager's Assessment:</label>
+                        
+                        <?php if ($question['response_type'] === 'radio' && !empty($response['manager_response'])): ?>
+                            <div class="alert alert-success">
+                                <i class="bi bi-check-circle me-2"></i>
+                                <strong>Selected:</strong> <?php echo htmlspecialchars($response['manager_response']); ?>
+                            </div>
+                        <?php elseif ($question['response_type'] === 'checkbox' && !empty($response['manager_response'])): ?>
+                            <div class="mb-2">
+                                <?php 
+                                $selected_options = explode(', ', $response['manager_response']);
+                                foreach ($selected_options as $option): 
+                                ?>
+                                <span class="badge bg-success me-1 mb-1"><?php echo htmlspecialchars($option); ?></span>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php elseif (!empty($response['manager_response'])): ?>
+                            <div class="bg-success bg-opacity-10 p-3 rounded border-start border-success border-3">
+                                <?php echo nl2br(htmlspecialchars($response['manager_response'])); ?>
+                            </div>
+                        <?php else: ?>
+                            <div class="alert alert-secondary">
+                                <em>No assessment provided yet</em>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($response['manager_comments'])): ?>
+                            <div class="mt-3">
+                                <label class="form-label text-muted small">Additional Comments:</label>
+                                <div class="bg-light p-2 rounded small">
+                                    <?php echo nl2br(htmlspecialchars($response['manager_comments'])); ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
         <?php else: ?>
             <!-- Normal side-by-side layout -->
             <div class="mb-4 pb-4 border-bottom">
-                <h6 class="fw-bold mb-3"><?php echo htmlspecialchars($question['text']); ?></h6>
-
+                <h6 class="fw-bold mb-3"><?php echo formatDescriptionAsBullets($question['text']); ?></h6>
+                    <?php if (!empty($question['description'])): ?>
+                    <div class="mt-2">
+                        <?php echo formatDescriptionAsBullets($question['description']); ?>
+                    </div>
+                <?php endif; ?>
                 <div class="row">
                     <!-- Employee side -->
                     <div class="col-md-6">
-                        <h6 class="text-primary">Your Response:</h6>
+                        <h6 class="text-primary">Employee Response:</h6>
                                 <?php if (in_array($question['response_type'], ['rating_5', 'rating_10']) && 
                                             isset($response['employee_rating']) && $response['employee_rating'] !== null): ?>
                                         <div class="mb-3 p-2 bg-primary bg-opacity-10 rounded border-start border-primary border-3">
@@ -315,8 +369,8 @@ try {
                                     <div class="mb-2">
                                         <i class="bi bi-paperclip me-2"></i>
                                         <strong>Attachment:</strong>
-                                        <a href="download.php?file=<?php echo urlencode($response['employee_attachment']); ?>&type=employee" 
-                                           class="text-primary ms-2" target="_blank">
+                                            <a href="download.php?file=<?php echo urlencode($response['employee_attachment']); ?>&type=employee" 
+                                                class="text-primary ms-2" target="_blank">
                                             <?php echo htmlspecialchars(basename($response['employee_attachment'])); ?>
                                             <i class="bi bi-download ms-1"></i>
                                         </a>

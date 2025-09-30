@@ -543,7 +543,7 @@ function updateScoreCalculator() {
     }); */
     
     // Count rating_10 questions
-    document.querySelectorAll('select[name^="manager_ra"]').forEach(function(select) {
+    document.querySelectorAll('select[name^="rating_"]').forEach(function(select) {
         totalQuestions++;
         const value = parseInt(select.value) || 0;
         if (value > 0) {

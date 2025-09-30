@@ -16,11 +16,11 @@ try {
     
     // Security check - verify file belongs to user or their appraisal
     $column = $type === 'employee' ? 'employee_attachment' : 'manager_attachment';
-    
-    $query = "SELECT r.*, a.user_id, a.appraiser_id
-              FROM responses r 
-              JOIN appraisals a ON r.appraisal_id = a.id
-              WHERE r.$column = ?";
+    $query = "SELECT r.*, a.user_id, a.appraiser_id, u.direct_superior
+          FROM responses r 
+          JOIN appraisals a ON r.appraisal_id = a.id
+          LEFT JOIN users u ON a.user_id = u.id
+          WHERE r.$column = ?";
     
     $stmt = $db->prepare($query);
     $stmt->execute([$file_path]);
