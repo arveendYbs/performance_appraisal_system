@@ -50,7 +50,7 @@ require_once 'auth_check.php';
             padding: 1.5rem 1rem;
             border-bottom: 1px solid rgba(255,255,255,0.1);
             text-align: center;
-            background: rgba(0,0,0,0.1);
+            background: rgba(0,0,0,0.05);
         }
 
         .sidebar .logo h4 {

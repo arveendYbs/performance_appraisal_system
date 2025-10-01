@@ -8,9 +8,13 @@ $current_path = $_SERVER['REQUEST_URI'];
 
 <div class="sidebar" id="sidebar">
     <div class="logo">
-        <h4><i class="bi bi-clipboard-data"></i> YBS</h4>
-        <small>Performance Appraisal System</small>
-    </div>
+    <img src="<?php echo BASE_URL; ?>/assets/images/logo.png" 
+         alt="Company Logo" 
+         style="height: 70px; margin-bottom: 0.5rem;"
+         onerror="this.style.display='none';">
+    <h4>
+    <strong>E-Appraisal System</strong></h4>
+</div>
     
     <nav class="nav flex-column">
         <!-- Dashboard -->
