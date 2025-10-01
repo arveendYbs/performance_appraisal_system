@@ -132,8 +132,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <div class="row justify-content-center">
             <div class="col-md-6 col-lg-4">
                 <div class="login-card">
-                    <div class="login-header">
+                    <!-- <div class="login-header">
                         <i class="bi bi-clipboard-data mb-3" style="font-size: 3rem;"></i>
+                        <h3><?php echo APP_NAME; ?></h3>
+                        <p class="mb-0">Please sign in to your account</p>
+                    </div> -->
+                    <div class="login-header">
+                        <img src="<?php echo BASE_URL; ?>/assets/images/logo.png" 
+                            alt="Company Logo" 
+                            style="height: 80px; margin-bottom: 1rem;"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <i class="bi bi-clipboard-data mb-3" style="font-size: 3rem; display: none;"></i>
                         <h3><?php echo APP_NAME; ?></h3>
                         <p class="mb-0">Please sign in to your account</p>
                     </div>

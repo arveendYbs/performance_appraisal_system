@@ -18,23 +18,25 @@ try {
     $database = new Database();
     $db = $database->getConnection();
     
-    // Get appraisal details and verify it belongs to manager's team or is completed
-    $query = "SELECT a.*, u.name as employee_name, u.position, u.emp_number, u.department, u.site,
-                     f.title as form_title, f.form_type,
-                     appraiser.name as appraiser_name
-              FROM appraisals a
-              JOIN users u ON a.user_id = u.id
-              LEFT JOIN forms f ON a.form_id = f.id
-              LEFT JOIN users appraiser ON a.appraiser_id = appraiser.id
-              WHERE a.id = ? AND (u.direct_superior = ? OR a.status = 'completed')";
-    
-    $stmt = $db->prepare($query);
-    $stmt->execute([$appraisal_id, $_SESSION['user_id']]);
-    $appraisal_data = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$appraisal_data) {
-        redirect('pending.php', 'Appraisal not found or access denied.', 'error');
-    }
+  // Get appraisal details and verify it belongs to manager's team AND is not in draft
+$query = "SELECT a.*, u.name as employee_name, u.position, u.emp_number, u.department, u.site,
+                 f.title as form_title, f.form_type,
+                 appraiser.name as appraiser_name
+          FROM appraisals a
+          JOIN users u ON a.user_id = u.id
+          LEFT JOIN forms f ON a.form_id = f.id
+          LEFT JOIN users appraiser ON a.appraiser_id = appraiser.id
+          WHERE a.id = ? 
+          AND u.direct_superior = ? 
+          AND a.status IN ('submitted', 'in_review', 'completed')";
+
+$stmt = $db->prepare($query);
+$stmt->execute([$appraisal_id, $_SESSION['user_id']]);
+$appraisal_data = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$appraisal_data) {
+    redirect('pending.php', 'Appraisal not found or not available for review.', 'error');
+}
     
     // Get form structure
     $form = new Form($db);

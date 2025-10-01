@@ -120,6 +120,12 @@ try {
                 <span class="badge <?php echo getStatusBadgeClass($appraisal_data['status']); ?> me-2">
                     <?php echo ucwords(str_replace('_', ' ', $appraisal_data['status'])); ?>
                 </span>
+                <?php if ($appraisal_data['status'] === 'completed'): ?>
+                <button class="btn btn-outline-secondary me-2" onclick="window.print()">
+                    <i class="bi bi-printer me-2"></i>Print
+                </button>
+                <?php endif; ?>
+                
                 <a href="../" class="btn btn-outline-secondary">
                     <i class="bi bi-arrow-left me-2"></i>Back to Home
                 </a>
@@ -303,6 +309,57 @@ try {
                         <?php echo formatDescriptionAsBullets($question['description']); ?>
                     </div>
                 <?php endif; ?>
+            </div>
+             <?php elseif ($section['visible_to'] === 'reviewer'): ?>
+            <!-- REVIEWER-ONLY SECTIONS (Pass Probation, etc.) - Show manager responses -->
+            <div class="mb-4 pb-4 border-bottom">
+                <h6 class="fw-bold mb-3">
+                    <?php echo htmlspecialchars($question['text']); ?>
+                    <span class="badge bg-warning ms-2">Manager Assessment</span>
+                </h6>
+
+                <?php if ($question['description']): ?>
+                    <p class="text-muted small mb-3"><?php echo formatDescriptionAsBullets($question['description']); ?></p>
+                <?php endif; ?>
+
+                <div class="row">
+                    <div class="col-md-8">
+                        <label class="form-label text-success fw-bold">Manager's Assessment:</label>
+                        
+                        <?php if ($question['response_type'] === 'radio' && !empty($response['manager_response'])): ?>
+                            <div class="alert alert-success">
+                                <i class="bi bi-check-circle me-2"></i>
+                                <strong>Selected:</strong> <?php echo htmlspecialchars($response['manager_response']); ?>
+                            </div>
+                        <?php elseif ($question['response_type'] === 'checkbox' && !empty($response['manager_response'])): ?>
+                            <div class="mb-2">
+                                <?php 
+                                $selected_options = explode(', ', $response['manager_response']);
+                                foreach ($selected_options as $option): 
+                                ?>
+                                <span class="badge bg-success me-1 mb-1"><?php echo htmlspecialchars($option); ?></span>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php elseif (!empty($response['manager_response'])): ?>
+                            <div class="bg-success bg-opacity-10 p-3 rounded border-start border-success border-3">
+                                <?php echo nl2br(htmlspecialchars($response['manager_response'])); ?>
+                            </div>
+                        <?php else: ?>
+                            <div class="alert alert-secondary">
+                                <em>No assessment provided yet</em>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($response['manager_comments'])): ?>
+                            <div class="mt-3">
+                                <label class="form-label text-muted small">Additional Comments:</label>
+                                <div class="bg-light p-2 rounded small">
+                                    <?php echo nl2br(htmlspecialchars($response['manager_comments'])); ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
 
         <?php else: ?>
