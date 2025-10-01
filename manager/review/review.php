@@ -187,6 +187,64 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $stmt->execute([$appraisal_id, $question_id, $rating, $comment, $attachment]);
                 }
             }
+
+             // Handle manager_response_ fields (for reviewer-only sections like "Only Applicable to New Joiner")
+            elseif (strpos($key, 'manager_response_') === 0) {
+                $question_id = str_replace('manager_response_', '', $key);
+                
+                // Handle checkbox arrays
+                if (is_array($value)) {
+                    $response_value = implode(', ', array_map('sanitize', $value));
+                } else {
+                    $response_value = sanitize($value);
+                }
+                
+                // Get associated comment if exists
+                $comment = sanitize($_POST['manager_comment_' . $question_id] ?? '');
+                $attachment = $uploaded_files[$question_id] ?? null;
+                
+                // Only save if there's actual data
+                if (!empty($response_value) || !empty($comment) || $attachment) {
+                    // Check if response exists
+                    $check_query = "SELECT * FROM responses WHERE appraisal_id = ? AND question_id = ?";
+                    $check_stmt = $db->prepare($check_query);
+                    $check_stmt->execute([$appraisal_id, $question_id]);
+                    $existing = $check_stmt->fetch();
+                    
+                    if ($existing) {
+                        // Update existing response
+                        $update_fields = [];
+                        $update_values = [];
+                        
+                        if (!empty($response_value)) {
+                            $update_fields[] = "manager_response = ?";
+                            $update_values[] = $response_value;
+                        }
+                        if (!empty($comment)) {
+                            $update_fields[] = "manager_comments = ?";
+                            $update_values[] = $comment;
+                        }
+                        if ($attachment) {
+                            $update_fields[] = "manager_attachment = ?";
+                            $update_values[] = $attachment;
+                        }
+                        
+                        if (!empty($update_fields)) {
+                            $query = "UPDATE responses SET " . implode(', ', $update_fields) . " WHERE appraisal_id = ? AND question_id = ?";
+                            $update_values[] = $appraisal_id;
+                            $update_values[] = $question_id;
+                            $stmt = $db->prepare($query);
+                            $stmt->execute($update_values);
+                        }
+                    } else {
+                        // Insert new response
+                        $query = "INSERT INTO responses (appraisal_id, question_id, manager_response, manager_comments, manager_attachment) 
+                                 VALUES (?, ?, ?, ?, ?)";
+                        $stmt = $db->prepare($query);
+                        $stmt->execute([$appraisal_id, $question_id, $response_value, $comment, $attachment]);
+                    }
+                }
+            }
             // Handle standalone manager comments
             elseif (strpos($key, 'manager_comment_') === 0 && 
                     !isset($_POST[str_replace('manager_comment_', 'manager_rating_', $key)])) {
@@ -474,6 +532,33 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             <?php endforeach; ?>
                         </div>
                     <?php elseif ($question['response_type'] === 'textarea'): ?>
+                        <!-- Checkbox for manager to select -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Your Selection:</label>
+                        <?php 
+                        $options = $question['options'] ?? [];
+                        $selected = [];
+                        if ($response && $response['manager_response']) {
+                            $selected = explode(', ', $response['manager_response']);
+                        }
+                        ?>
+                        <div class="row">
+                            <?php foreach ($options as $option): ?>
+                            <div class="col-md-4 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" 
+                                        name="manager_response_<?php echo $question['id']; ?>[]" 
+                                        value="<?php echo htmlspecialchars($option); ?>"
+                                        <?php echo in_array($option, $selected) ? 'checked' : ''; ?>>
+                                    <label class="form-check-label">
+                                        <?php echo htmlspecialchars($option); ?>
+                                    </label>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php elseif ($question['response_type'] === 'textarea'): ?>
                         <!-- Textarea for manager to fill -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">Your Response:</label>
