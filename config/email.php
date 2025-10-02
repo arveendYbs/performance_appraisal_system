@@ -2,6 +2,9 @@
 /**
  * Email Configuration and Helper Functions
  */
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
@@ -110,6 +113,9 @@ function getEmailTemplate($content, $subject, $recipient_name) {
  * Log email sending attempt to database
  * FIXED: Get database connection properly
  */
+/**
+ * Log email sending attempt to database
+ */
 function logEmail($to, $recipient_name, $subject, $email_type, $appraisal_id = null, $user_id = null, $success = true) {
     try {
         // Get database connection
@@ -121,14 +127,19 @@ function logEmail($to, $recipient_name, $subject, $email_type, $appraisal_id = n
             return false;
         }
         
+        // First, let's check what columns exist in email_logs
+        error_log("Attempting to log email to: {$to}");
+        
+        // Use the column names that match your actual table structure
+        // Based on your error, it seems you have 'appraisal_id' not 'related_appraisal_id'
         $query = "INSERT INTO email_logs (recipient_email, recipient_name, subject, email_type, 
-                  related_appraisal_id, related_user_id, status) 
-                  VALUES (?, ?, ?, ?, ?, ?, ?)";
+                  appraisal_id, user_id, status, sent_at) 
+                  VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
         
         $stmt = $db->prepare($query);
         $status = $success ? 'sent' : 'failed';
         
-        $stmt->execute([
+        $result = $stmt->execute([
             $to,
             $recipient_name,
             $subject,
@@ -138,9 +149,16 @@ function logEmail($to, $recipient_name, $subject, $email_type, $appraisal_id = n
             $status
         ]);
         
+        if ($result) {
+            error_log("✅ Email logged successfully");
+        } else {
+            error_log("❌ Failed to log email");
+        }
+        
         return true;
     } catch (Exception $e) {
-        error_log("Email logging error: " . $e->getMessage());
+        error_log("❌ Email logging error: " . $e->getMessage());
+        // Don't fail the email sending just because logging failed
         return false;
     }
 }
@@ -161,13 +179,29 @@ function sendAppraisalSubmissionEmails($appraisal_id) {
             return false;
         }
         
-        // Get appraisal and user details
-        $query = "SELECT a.*, u.name as employee_name, u.email as employee_email, 
-                         u.company_id, m.name as manager_name, m.email as manager_email
+        // UPDATED QUERY - Prefer work email (emp_email) over personal email
+        $query = "SELECT 
+                    a.*, 
+                    a.user_id,
+                    a.appraisal_period_from,
+                    a.appraisal_period_to,
+                    u.name as employee_name, 
+                    COALESCE(NULLIF(u.emp_email, ''), u.email) as employee_email,
+                    u.email as employee_personal_email,
+                    u.emp_email as employee_work_email,
+                    u.company_id,
+                    u.direct_superior,
+                    m.name as manager_name, 
+                    COALESCE(NULLIF(m.emp_email, ''), m.email) as manager_email,
+                    m.email as manager_personal_email,
+                    m.emp_email as manager_work_email
                   FROM appraisals a
                   JOIN users u ON a.user_id = u.id
                   LEFT JOIN users m ON u.direct_superior = m.id
                   WHERE a.id = ?";
+        
+        error_log("=== sendAppraisalSubmissionEmails CALLED ===");
+        error_log("Appraisal ID: {$appraisal_id}");
         
         $stmt = $db->prepare($query);
         $stmt->execute([$appraisal_id]);
@@ -178,9 +212,26 @@ function sendAppraisalSubmissionEmails($appraisal_id) {
             return false;
         }
         
+        // DEBUG LOG
+        error_log("=== QUERY RESULTS ===");
+        error_log("Employee: {$data['employee_name']}");
+        error_log("Employee Work Email: " . ($data['employee_work_email'] ?? 'NULL'));
+        error_log("Employee Personal Email: " . ($data['employee_personal_email'] ?? 'NULL'));
+        error_log("Employee Final Email: {$data['employee_email']}");
+        error_log("Direct Superior ID: " . ($data['direct_superior'] ?? 'NULL'));
+        error_log("Manager Name: " . ($data['manager_name'] ?? 'NULL'));
+        error_log("Manager Work Email: " . ($data['manager_work_email'] ?? 'NULL'));
+        error_log("Manager Personal Email: " . ($data['manager_personal_email'] ?? 'NULL'));
+        error_log("Manager Final Email: " . ($data['manager_email'] ?? 'NULL'));
+        error_log("Company ID: {$data['company_id']}");
+        error_log("====================");
+        
         $base_url = BASE_URL;
         
         // 1. Send email to employee
+        error_log("--- Sending email to EMPLOYEE ---");
+        error_log("To: {$data['employee_email']}");
+        
         $employee_message = "
             <div class='info-box'>
                 <p><strong>✓ Your appraisal has been successfully submitted!</strong></p>
@@ -204,10 +255,14 @@ function sendAppraisalSubmissionEmails($appraisal_id) {
             ]
         );
         
-        error_log("Employee email sent to {$data['employee_email']}: " . ($employee_sent ? 'Success' : 'Failed'));
+        error_log("Employee email sent: " . ($employee_sent ? 'SUCCESS' : 'FAILED'));
         
         // 2. Send email to manager
         if (!empty($data['manager_email'])) {
+            error_log("--- Sending email to MANAGER ---");
+            error_log("To: {$data['manager_email']}");
+            error_log("Manager Name: {$data['manager_name']}");
+            
             $manager_message = "
                 <div class='info-box'>
                     <p><strong>📋 New appraisal ready for your review</strong></p>
@@ -231,57 +286,19 @@ function sendAppraisalSubmissionEmails($appraisal_id) {
                 ]
             );
             
-            error_log("Manager email sent to {$data['manager_email']}: " . ($manager_sent ? 'Success' : 'Failed'));
+            error_log("Manager email sent: " . ($manager_sent ? 'SUCCESS' : 'FAILED'));
+        } else {
+            error_log("❌ MANAGER EMAIL IS EMPTY - NOT SENDING");
         }
         
-        // 3. Send emails to all HR personnel responsible for this company
-        $hr_query = "SELECT DISTINCT u.name, u.email
-                     FROM hr_companies hc
-                     JOIN users u ON hc.user_id = u.id
-                     WHERE hc.company_id = ? AND u.is_hr = TRUE AND u.is_active = TRUE";
         
-        $hr_stmt = $db->prepare($hr_query);
-        $hr_stmt->execute([$data['company_id']]);
         
-        $hr_count = 0;
-        while ($hr = $hr_stmt->fetch(PDO::FETCH_ASSOC)) {
-            $hr_message = "
-                <div class='info-box'>
-                    <p><strong>📊 HR Notification: New Appraisal Submitted</strong></p>
-                </div>
-                <p>A new performance appraisal has been submitted and requires attention.</p>
-                <p>
-                    <strong>Employee:</strong> {$data['employee_name']}<br>
-                    <strong>Manager:</strong> {$data['manager_name']}<br>
-                    <strong>Appraisal Period:</strong> " . formatDate($data['appraisal_period_from']) . " - " . formatDate($data['appraisal_period_to']) . "
-                </p>
-                <p>You are receiving this notification as HR personnel responsible for this company.</p>
-                <p style='text-align: center;'>
-                    <a href='{$base_url}/hr/appraisals/view.php?id={$appraisal_id}' class='button'>View Appraisal</a>
-                </p>
-            ";
-            
-            $hr_sent = sendEmail(
-                $hr['email'],
-                'Employee Appraisal Submitted - HR Notification',
-                $hr_message,
-                $hr['name'],
-                [
-                    'email_type' => 'appraisal_submitted_hr',
-                    'appraisal_id' => $appraisal_id
-                ]
-            );
-            
-            error_log("HR email sent to {$hr['email']}: " . ($hr_sent ? 'Success' : 'Failed'));
-            $hr_count++;
-        }
-        
-        error_log("sendAppraisalSubmissionEmails completed for appraisal ID {$appraisal_id}. HR emails sent: {$hr_count}");
         
         return true;
         
     } catch (Exception $e) {
-        error_log("Appraisal submission email error: " . $e->getMessage());
+        error_log("!!! EXCEPTION in sendAppraisalSubmissionEmails !!!");
+        error_log("Message: " . $e->getMessage());
         error_log("Stack trace: " . $e->getTraceAsString());
         return false;
     }
@@ -303,13 +320,20 @@ function sendReviewCompletionEmails($appraisal_id) {
             return false;
         }
         
-        // Get appraisal details
-        $query = "SELECT a.*, u.name as employee_name, u.email as employee_email,
-                         u.company_id, m.name as manager_name
+        // Get appraisal details - PREFER WORK EMAIL
+        $query = "SELECT a.*, 
+                         u.name as employee_name,
+                         COALESCE(NULLIF(u.emp_email, ''), u.email) as employee_email,
+                         u.company_id, 
+                         m.name as manager_name,
+                         COALESCE(NULLIF(m.emp_email, ''), m.email) as manager_email
                   FROM appraisals a
                   JOIN users u ON a.user_id = u.id
                   LEFT JOIN users m ON a.appraiser_id = m.id
                   WHERE a.id = ?";
+        
+        error_log("=== sendReviewCompletionEmails CALLED ===");
+        error_log("Appraisal ID: {$appraisal_id}");
         
         $stmt = $db->prepare($query);
         $stmt->execute([$appraisal_id]);
@@ -320,9 +344,14 @@ function sendReviewCompletionEmails($appraisal_id) {
             return false;
         }
         
+        error_log("Employee: {$data['employee_name']} ({$data['employee_email']})");
+        error_log("Manager: {$data['manager_name']} ({$data['manager_email']})");
+        error_log("Grade: {$data['grade']}, Score: {$data['total_score']}");
+        
         $base_url = BASE_URL;
         
-        // 1. Send email to employee
+        // 1. Send email to EMPLOYEE
+        error_log("--- Sending completion email to EMPLOYEE ---");
         $employee_message = "
             <div class='info-box'>
                 <p><strong>✓ Your appraisal review is complete!</strong></p>
@@ -337,6 +366,7 @@ function sendReviewCompletionEmails($appraisal_id) {
             $employee_message .= "
             <div class='info-box'>
                 <p style='margin: 0; font-size: 18px;'><strong>Final Grade: {$data['grade']}</strong></p>
+                <p style='margin: 5px 0 0 0;'>Total Score: {$data['total_score']}</p>
             </div>";
         }
         
@@ -359,10 +389,42 @@ function sendReviewCompletionEmails($appraisal_id) {
             ]
         );
         
-        error_log("Employee completion email sent to {$data['employee_email']}: " . ($employee_sent ? 'Success' : 'Failed'));
+        error_log("Employee completion email: " . ($employee_sent ? 'SUCCESS' : 'FAILED'));
         
-        // 2. Send emails to HR personnel
-        $hr_query = "SELECT DISTINCT u.name, u.email
+        // 2. Send email to MANAGER (confirmation)
+        if (!empty($data['manager_email'])) {
+            error_log("--- Sending confirmation email to MANAGER ---");
+            $manager_message = "
+                <div class='info-box'>
+                    <p><strong>✓ Appraisal Review Completed</strong></p>
+                </div>
+                <p>You have successfully completed the appraisal review for <strong>{$data['employee_name']}</strong>.</p>
+                <p>
+                    <strong>Final Grade:</strong> {$data['grade']}<br>
+                    <strong>Total Score:</strong> {$data['total_score']}<br>
+                    <strong>Appraisal Period:</strong> " . formatDate($data['appraisal_period_from']) . " - " . formatDate($data['appraisal_period_to']) . "
+                </p>
+                <p>The employee and HR have been notified of the completed review.</p>
+            ";
+            
+            $manager_sent = sendEmail(
+                $data['manager_email'],
+                'Appraisal Review Completed - Confirmation',
+                $manager_message,
+                $data['manager_name'],
+                [
+                    'email_type' => 'review_completed_manager',
+                    'appraisal_id' => $appraisal_id
+                ]
+            );
+            
+            error_log("Manager confirmation email: " . ($manager_sent ? 'SUCCESS' : 'FAILED'));
+        }
+        
+        // 3. Send emails to HR personnel
+        error_log("--- Sending completion emails to HR ---");
+        $hr_query = "SELECT DISTINCT u.name, 
+                            COALESCE(NULLIF(u.emp_email, ''), u.email) as email
                      FROM hr_companies hc
                      JOIN users u ON hc.user_id = u.id
                      WHERE hc.company_id = ? AND u.is_hr = TRUE AND u.is_active = TRUE";
@@ -372,6 +434,8 @@ function sendReviewCompletionEmails($appraisal_id) {
         
         $hr_count = 0;
         while ($hr = $hr_stmt->fetch(PDO::FETCH_ASSOC)) {
+            error_log("Sending completion email to HR: {$hr['name']} ({$hr['email']})");
+            
             $hr_message = "
                 <div class='info-box'>
                     <p><strong>✓ HR Notification: Appraisal Review Completed</strong></p>
@@ -384,7 +448,11 @@ function sendReviewCompletionEmails($appraisal_id) {
                 </p>";
             
             if (!empty($data['grade'])) {
-                $hr_message .= "<p><strong>Final Grade:</strong> {$data['grade']}</p>";
+                $hr_message .= "
+                <p>
+                    <strong>Final Grade:</strong> {$data['grade']}<br>
+                    <strong>Total Score:</strong> {$data['total_score']}
+                </p>";
             }
             
             $hr_message .= "
@@ -404,16 +472,18 @@ function sendReviewCompletionEmails($appraisal_id) {
                 ]
             );
             
-            error_log("HR completion email sent to {$hr['email']}: " . ($hr_sent ? 'Success' : 'Failed'));
+            error_log("HR completion email sent: " . ($hr_sent ? 'SUCCESS' : 'FAILED'));
             $hr_count++;
         }
         
-        error_log("sendReviewCompletionEmails completed for appraisal ID {$appraisal_id}. HR emails sent: {$hr_count}");
+        error_log("Total HR completion emails sent: {$hr_count}");
+        error_log("=== sendReviewCompletionEmails COMPLETED ===");
         
         return true;
         
     } catch (Exception $e) {
-        error_log("Review completion email error: " . $e->getMessage());
+        error_log("!!! EXCEPTION in sendReviewCompletionEmails !!!");
+        error_log("Message: " . $e->getMessage());
         error_log("Stack trace: " . $e->getTraceAsString());
         return false;
     }

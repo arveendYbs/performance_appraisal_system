@@ -161,16 +161,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception('One or more saves failed. Check logs for details.');
         }
 
-        // 6) Update status if submitting
+        // 6) Handle action
         if ($action === 'submit') {
-            if (!$appraisal->updateStatus('submitted')) {
-                throw new Exception('Failed to update status to submitted.');
-            }
-            logActivity($_SESSION['user_id'], 'SUBMIT', 'appraisals', $appraisal_id, null, null, 'Submitted appraisal for review');
-            redirect('../index.php', 'Appraisal submitted successfully! Your manager will be notified.', 'success');
+            // Instead of submitting directly, redirect to confirmation page
+            redirect('submit.php?id=' . $appraisal_id);
         } else {
+            // Save progress
             logActivity($_SESSION['user_id'], 'UPDATE', 'appraisals', $appraisal_id, null, null, 'Saved appraisal progress');
-            redirect('continue.php', 'Progress saved successfully!', 'success');
+            redirect('continue.php?id=' . $appraisal_id, 'Progress saved successfully!', 'success');
         }
     } catch (Exception $e) {
         error_log("Save appraisal error: " . $e->getMessage());

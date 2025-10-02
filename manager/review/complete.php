@@ -58,26 +58,35 @@ try {
         
         $stmt = $db->prepare($query);
         
-        if ($stmt->execute([$total_score, $grade, $_SESSION['user_id'], $appraisal_id])) {
-            // Save overall manager comments if provided
-            if (!empty($overall_comments)) {
-                $comment_query = "INSERT INTO responses (appraisal_id, question_id, manager_comments) 
-                                 VALUES (?, 0, ?) 
-                                 ON DUPLICATE KEY UPDATE manager_comments = VALUES(manager_comments)";
-                $comment_stmt = $db->prepare($comment_query);
-                $comment_stmt->execute([$appraisal_id, $overall_comments]);
+        if ($stmt->execute([$total_score, $grade, $manager_comments, $appraisal_id])) {
+            error_log("✅ Appraisal marked as completed");
+            error_log("Grade: {$grade}, Score: {$total_score}");
+            
+            logActivity($_SESSION['user_id'], 'COMPLETE_REVIEW', 'appraisals', $appraisal_id, null, null, 
+                       'Completed appraisal review with grade: ' . $grade);
+            error_log("✅ Activity logged");
+            
+            // SEND EMAIL NOTIFICATIONS - THIS IS THE KEY ADDITION
+            error_log("--- CALLING REVIEW COMPLETION EMAIL FUNCTION ---");
+            error_log("Function exists: " . (function_exists('sendReviewCompletionEmails') ? 'YES' : 'NO'));
+            
+            if (function_exists('sendReviewCompletionEmails')) {
+                error_log("Calling sendReviewCompletionEmails({$appraisal_id})");
+                try {
+                    $email_result = sendReviewCompletionEmails($appraisal_id);
+                    error_log("Review completion email result: " . ($email_result ? 'SUCCESS' : 'FAILED'));
+                } catch (Exception $e) {
+                    error_log("❌ Exception in email sending: " . $e->getMessage());
+                }
+            } else {
+                error_log("❌ Function does not exist!");
             }
             
-            logActivity($_SESSION['user_id'], 'COMPLETE', 'appraisals', $appraisal_id,
-                       ['status' => $appraisal_data['status']], 
-                       ['status' => 'completed', 'grade' => $grade, 'total_score' => $total_score],
-                       'Completed appraisal review for ' . $appraisal_data['employee_name']);
+            error_log("=== MANAGER REVIEW COMPLETION END ===");
             
-            // Send email notification to employee
-            sendReviewCompletionEmails($appraisal_id);
-
-            redirect('pending.php', 'Appraisal completed successfully! The employee has been notified.', 'success');
+            redirect('pending.php', 'Appraisal completed successfully! Notifications have been sent to the employee and HR.', 'success');
         } else {
+            error_log("❌ Failed to update appraisal");
             redirect('complete.php?id=' . $appraisal_id, 'Failed to complete appraisal. Please try again.', 'error');
         }
     }

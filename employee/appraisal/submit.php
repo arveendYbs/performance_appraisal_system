@@ -35,6 +35,8 @@ try {
         $stmt = $db->prepare($query);
         
         if ($stmt->execute([$appraisal_id])) {
+            error_log("✅ Appraisal status updated to 'submitted'");
+
             // Get user's direct superior
             $user_query = "SELECT direct_superior FROM users WHERE id = ?";
             $user_stmt = $db->prepare($user_query);
@@ -50,14 +52,24 @@ try {
             
             logActivity($_SESSION['user_id'], 'SUBMIT', 'appraisals', $appraisal_id, null, null, 
                        'Submitted appraisal for review');
-            // Send email notifications - with error logging
-                error_log("Attempting to send appraisal submission emails for ID: {$appraisal_id}");
-                $email_result = sendAppraisalSubmissionEmails($appraisal_id);
-                error_log("Email sending result: " . ($email_result ? 'Success' : 'Failed'));
-                
+                 // DEBUG: Check if function exists
+    error_log("✅ Activity logged");
+              // THIS MUST BE HERE
+    error_log("--- CALLING EMAIL FUNCTION ---");
+    error_log("sendAppraisalSubmissionEmails function exists: " . (function_exists('sendAppraisalSubmissionEmails') ? 'YES' : 'NO'));
+    
+    if (function_exists('sendAppraisalSubmissionEmails')) {
+        error_log("Calling sendAppraisalSubmissionEmails({$appraisal_id})");
+        $email_result = sendAppraisalSubmissionEmails($appraisal_id);
+        error_log("Email result: " . ($email_result ? 'SUCCESS' : 'FAILED'));
+    } else {
+        error_log("❌ Function does not exist!");
+    }
+    
             
-            redirect('../index.php', 'Appraisal submitted successfully! Your manager will be notified for review.', 'success');
+            redirect('../index.php', 'Appraisal submitted successfully! Notifications are being sent.', 'success');
         } else {
+            error_log("Failed to update appraisal status");
             redirect('submit.php?id=' . $appraisal_id, 'Failed to submit appraisal. Please try again.', 'error');
         }
     }
