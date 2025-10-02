@@ -49,6 +49,9 @@ try {
             $is_active = isset($_POST['is_active']) ? 1 : 0;
             $new_password = $_POST['new_password'] ?? '';
             $confirm_password = $_POST['confirm_password'] ?? '';
+            $company_id = $_POST['company_id'] ?? null;
+            $is_hr = isset($_POST['is_hr']) ? 1 : 0;
+            $hr_companies = $_POST['hr_companies'] ?? [];
 
             // Validation
             if (empty($name) || empty($emp_number) || empty($email) || empty($position) || 
@@ -85,6 +88,8 @@ try {
                 $user->site = $site;
                 $user->role = $role;
                 $user->is_active = $is_active;
+                $user->company_id = $company_id;  // ADD THIS
+                $user->is_hr = $is_hr;            // ADD THIS
 
                 if ($user->update()) {
                     // Update password if provided
@@ -97,7 +102,13 @@ try {
                         'role' => $role,
                         'is_active' => $is_active
                     ];
-                    
+                    // Sync HR companies
+                    if ($is_hr) {
+                        $user->syncHRCompanies($hr_companies);
+                    } else {
+                        // Remove all HR assignments if no longer HR
+                        $user->syncHRCompanies([]);
+                    }
                     logActivity(
                         $_SESSION['user_id'],
                         'UPDATE',
@@ -244,6 +255,57 @@ require_once __DIR__ . '/../../includes/header.php';
                             </div>
                         </div>
 
+                        <!-- Company Selection -->
+                        <div class="mb-3">
+                            <label for="company_id" class="form-label">Company <span class="text-danger">*</span></label>
+                            <select class="form-select" id="company_id" name="company_id" required>
+                                <option value="">Select Company</option>
+                                <?php
+                                require_once __DIR__ . '/../../classes/Company.php';
+                                $company_model = new Company($db);
+                                $companies_stmt = $company_model->getAll();
+                                while ($company = $companies_stmt->fetch(PDO::FETCH_ASSOC)) {
+                                    $selected = ($company['id'] == $user->company_id) ? 'selected' : '';
+                                    echo "<option value='{$company['id']}' {$selected}>{$company['name']}</option>";
+                                }
+                                ?>
+                            </select>
+                        </div>
+
+                        <!-- HR Status -->
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_hr" name="is_hr" value="1" 
+                                    <?php echo $user->is_hr ? 'checked' : ''; ?>>
+                                <label class="form-check-label" for="is_hr">
+                                    <strong>HR Personnel</strong> - Can view appraisals from assigned companies
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- HR Companies -->
+                        <?php
+                        $user_hr_companies = $user->getHRCompanies();
+                        $user_hr_company_ids = array_column($user_hr_companies, 'id');
+                        ?>
+                        <div class="mb-3" id="hr_companies_section" style="display: <?php echo $user->is_hr ? 'block' : 'none'; ?>;">
+                            <label class="form-label">HR Responsible for Companies</label>
+                            <?php
+                            $companies_stmt2 = $company_model->getAll();
+                            while ($company = $companies_stmt2->fetch(PDO::FETCH_ASSOC)) {
+                                $checked = in_array($company['id'], $user_hr_company_ids) ? 'checked' : '';
+                                echo "
+                                <div class='form-check'>
+                                    <input class='form-check-input hr-company-checkbox' type='checkbox' name='hr_companies[]' 
+                                        value='{$company['id']}' id='hr_company_{$company['id']}' {$checked}>
+                                    <label class='form-check-label' for='hr_company_{$company['id']}'>
+                                        {$company['name']}
+                                    </label>
+                                </div>";
+                            }
+                            ?>
+                        </div>
+
                         <!-- Date Joined and Role -->
                         <div class="row">
                             <div class="col-md-6">
@@ -341,6 +403,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         form.classList.add('was-validated');
     });
+});
+document.getElementById('is_hr').addEventListener('change', function() {
+    document.getElementById('hr_companies_section').style.display = this.checked ? 'block' : 'none';
+    if (!this.checked) {
+        document.querySelectorAll('.hr-company-checkbox').forEach(cb => cb.checked = false);
+    }
 });
 </script>
 

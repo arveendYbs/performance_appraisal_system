@@ -26,14 +26,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $role = $_POST['role'] ?? '';
         $password = $_POST['password'] ?? '';
         $confirm_password = $_POST['confirm_password'] ?? '';
+        $company_id = $_POST['company_id'] ?? null;
+        $is_hr = isset($_POST['is_hr']) ? 1 : 0;
+        $hr_companies = $_POST['hr_companies'] ?? [];
 
         // Validation
-        if (empty($name) || empty($emp_number) || empty($email) || empty($position) || 
+        if (empty($name) || empty($emp_number) || empty($email) || empty($company_id) || empty($position) || 
             empty($department) || empty($date_joined) || empty($site) || empty($role) || 
             empty($password)) {
             $error_message = 'All fields are required except company email and direct superior.';
         } elseif (!validateEmail($email)) {
             $error_message = 'Invalid email format.';
+        
         } elseif (!empty($emp_email) && !validateEmail($emp_email)) {
             $error_message = 'Invalid company email format.';
         } elseif ($password !== $confirm_password) {
@@ -56,9 +60,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $user->date_joined = $date_joined;
                 $user->site = $site;
                 $user->role = $role;
+                $user->company_id = $company_id;  // ADD THIS
+                $user->is_hr = $is_hr;            // ADD THIS
                 $user->password = $password;
 
                 if ($user->create()) {
+                     $user_id = $db->lastInsertId();
+        
+                    // If HR user, assign to companies
+                    if ($is_hr && !empty($hr_companies)) {
+                        $user->id = $user_id;
+                        foreach ($hr_companies as $comp_id) {
+                            $user->assignToCompany($comp_id);
+                        }
+                    }
                     logActivity($_SESSION['user_id'], 'CREATE', 'users', $user->id, null,
                                ['name' => $name, 'emp_number' => $emp_number, 'role' => $role],
                                'Created new user: ' . $name);
@@ -195,6 +210,51 @@ require_once __DIR__ . '/../../includes/header.php';
                             </div>
                         </div>
                     </div>
+
+                    <!-- Company Selection -->
+                    <div class="mb-3">
+                        <label for="company_id" class="form-label">Company <span class="text-danger">*</span></label>
+                        <select class="form-select" id="company_id" name="company_id" required>
+                            <option value="">Select Company</option>
+                            <?php
+                            require_once __DIR__ . '/../../classes/Company.php';
+                            $company_model = new Company($db);
+                            $companies_stmt = $company_model->getAll();
+                            while ($company = $companies_stmt->fetch(PDO::FETCH_ASSOC)) {
+                                echo "<option value='{$company['id']}'>{$company['name']}</option>";
+                            }
+                            ?>
+                        </select>
+                    </div>
+
+                    <!-- HR Status -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_hr" name="is_hr" value="1">
+                            <label class="form-check-label" for="is_hr">
+                                <strong>HR Personnel</strong> - Can view appraisals from assigned companies
+                            </label>
+                        </div>
+                        <small class="text-muted">Note: HR is not a role. HR users can still be employees, managers, or admins.</small>
+                    </div>
+
+                    <!-- HR Companies (only shown if is_hr is checked) -->
+                    <div class="mb-3" id="hr_companies_section" style="display: none;">
+                        <label class="form-label">HR Responsible for Companies</label>
+                        <?php
+                        $companies_stmt2 = $company_model->getAll();
+                        while ($company = $companies_stmt2->fetch(PDO::FETCH_ASSOC)) {
+                            echo "
+                            <div class='form-check'>
+                                <input class='form-check-input hr-company-checkbox' type='checkbox' name='hr_companies[]' 
+                                    value='{$company['id']}' id='hr_company_{$company['id']}'>
+                                <label class='form-check-label' for='hr_company_{$company['id']}'>
+                                    {$company['name']}
+                                </label>
+                            </div>";
+                        }
+                        ?>
+                    </div>
                     
                     <div class="row">
                         <div class="col-md-6">
@@ -262,6 +322,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     password.addEventListener('input', validatePasswords);
     confirmPassword.addEventListener('input', validatePasswords);
+});
+
+// Show/hide HR companies section
+document.getElementById('is_hr').addEventListener('change', function() {
+    document.getElementById('hr_companies_section').style.display = this.checked ? 'block' : 'none';
+    
+    // If unchecked, uncheck all HR companies
+    if (!this.checked) {
+        document.querySelectorAll('.hr-company-checkbox').forEach(cb => cb.checked = false);
+    }
 });
 
 </script>

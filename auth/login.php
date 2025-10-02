@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $_SESSION['user_department'] = $user->department;
                 $_SESSION['user_role'] = $user->role;
                 $_SESSION['last_activity'] = time();
-
+             
                 // Log successful login
                 logActivity($user->id, 'LOGIN', 'users', $user->id, null, null, 'User logged in');
 

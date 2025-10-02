@@ -45,4 +45,6 @@ spl_autoload_register(function ($class_name) {
 
 // Include database after autoloading
 require_once __DIR__ . '/../classes/Database.php';
+require_once __DIR__ . '/email.php';  // ADD THIS LINE
+
 ?>

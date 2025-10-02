@@ -1,6 +1,7 @@
 <?php
 // manager/review/complete.php
 require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../config/email.php';
 
 if (!hasRole('manager') && !hasRole('admin')) {
     redirect(BASE_URL . '/index.php', 'Access denied.', 'error');
@@ -45,11 +46,13 @@ try {
         }
         
         // Update appraisal with final scores and complete status
+        // i added mananger comments and manager_submitted_at
         $query = "UPDATE appraisals 
                   SET status = 'completed', 
                       total_score = ?, 
                       grade = ?, 
                       manager_reviewed_at = NOW(),
+                      
                       appraiser_id = ?
                   WHERE id = ?";
         
@@ -70,6 +73,9 @@ try {
                        ['status' => 'completed', 'grade' => $grade, 'total_score' => $total_score],
                        'Completed appraisal review for ' . $appraisal_data['employee_name']);
             
+            // Send email notification to employee
+            sendReviewCompletionEmails($appraisal_id);
+
             redirect('pending.php', 'Appraisal completed successfully! The employee has been notified.', 'success');
         } else {
             redirect('complete.php?id=' . $appraisal_id, 'Failed to complete appraisal. Please try again.', 'error');

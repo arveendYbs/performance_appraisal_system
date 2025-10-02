@@ -351,4 +351,56 @@ public function getSectionComments() {
 
         return $stmt;
     }
+
+    /**
+ * Get appraisals visible to HR user
+ * HR can see all appraisals from their assigned companies
+ */
+public function getAppraisalsForHR($hr_user_id, $status = null) {
+    $query = "SELECT a.*, 
+                     u.name as employee_name, u.emp_number, u.position, u.department,
+                     c.name as company_name,
+                     m.name as manager_name,
+                     f.title as form_title
+              FROM " . $this->table_name . " a
+              JOIN users u ON a.user_id = u.id
+              JOIN companies c ON u.company_id = c.id
+              JOIN hr_companies hc ON c.id = hc.company_id
+              LEFT JOIN users m ON a.appraiser_id = m.id
+              LEFT JOIN forms f ON a.form_id = f.id
+              WHERE hc.user_id = ?";
+    
+    if ($status) {
+        $query .= " AND a.status = ?";
+    }
+    
+    $query .= " ORDER BY a.created_at DESC";
+
+    $stmt = $this->conn->prepare($query);
+    
+    if ($status) {
+        $stmt->execute([$hr_user_id, $status]);
+    } else {
+        $stmt->execute([$hr_user_id]);
+    }
+
+    return $stmt;
+}
+
+/**
+ * Check if HR user can view specific appraisal
+ */
+public function canHRView($appraisal_id, $hr_user_id) {
+    $query = "SELECT COUNT(*) as count
+              FROM " . $this->table_name . " a
+              JOIN users u ON a.user_id = u.id
+              JOIN hr_companies hc ON u.company_id = hc.company_id
+              WHERE a.id = ? AND hc.user_id = ?";
+
+    $stmt = $this->conn->prepare($query);
+    $stmt->execute([$appraisal_id, $hr_user_id]);
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    return $result['count'] > 0;
+}
 }

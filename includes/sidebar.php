@@ -4,6 +4,17 @@ ob_start();
 // includes/sidebar.php
 $current_page = basename($_SERVER['PHP_SELF']);
 $current_path = $_SERVER['REQUEST_URI'];
+
+// Check if user is HR
+$is_hr = false;
+if (isset($_SESSION['user_id'])) {
+    $database = new Database();
+    $db = $database->getConnection();
+    $current_user = new User($db);
+    $current_user->id = $_SESSION['user_id'];
+    $current_user->readOne();
+    $is_hr = $current_user->isHR();
+}
 ?>
 
 <div class="sidebar" id="sidebar">
@@ -14,7 +25,7 @@ $current_path = $_SERVER['REQUEST_URI'];
          onerror="this.style.display='none';">
     <h4>
     <strong>E-Appraisal System</strong></h4>
-</div>
+    </div>
     
     <nav class="nav flex-column">
         <!-- Dashboard -->
@@ -65,6 +76,7 @@ $current_path = $_SERVER['REQUEST_URI'];
         </div>
         <?php endif; ?>
 
+
         <?php if (hasRole('manager') || hasRole('admin')): ?>
         <!-- Management Section -->
         <div class="nav-header">Management</div>
@@ -91,6 +103,46 @@ $current_path = $_SERVER['REQUEST_URI'];
         </div>
         <?php endif; ?>
 
+
+            <!-- Add this HR section in your sidebar -->
+            <?php if ($is_hr): ?>
+            <li class="nav-item">
+                <a class="nav-link <?php echo strpos($_SERVER['REQUEST_URI'], '/hr/') !== false ? 'active' : ''; ?>" 
+                href="<?php echo BASE_URL; ?>/hr/index.php">
+                    <i class="bi bi-briefcase me-2"></i>HR Dashboard
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="collapse" href="#hrMenu" role="button" 
+                aria-expanded="false" aria-controls="hrMenu">
+                    <i class="bi bi-diagram-3 me-2"></i>HR Functions
+                    <i class="bi bi-chevron-down ms-auto"></i>
+                </a>
+                <div class="collapse" id="hrMenu">
+                    <ul class="nav flex-column ms-3">
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo BASE_URL; ?>/hr/appraisals/index.php">
+                                <i class="bi bi-clipboard-data me-2"></i>All Appraisals
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo BASE_URL; ?>/hr/employees/index.php">
+                                <i class="bi bi-people me-2"></i>Employees
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo BASE_URL; ?>/hr/reports/index.php">
+                                <i class="bi bi-graph-up me-2"></i>Reports
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+            <?php endif; ?>
+
+        
+       
         <!-- Employee Section -->
         <div class="nav-header">Employee</div>
         

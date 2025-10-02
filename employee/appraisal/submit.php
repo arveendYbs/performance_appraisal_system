@@ -1,6 +1,10 @@
 <?php
 // employee/appraisal/submit.php
 require_once __DIR__ . '/../../config/config.php';
+// Make sure email.php is loaded
+if (!function_exists('sendAppraisalSubmissionEmails')) {
+    require_once __DIR__ . '/../../config/email.php';
+}
 
 $appraisal_id = $_GET['id'] ?? 0;
 if (!$appraisal_id) {
@@ -46,6 +50,11 @@ try {
             
             logActivity($_SESSION['user_id'], 'SUBMIT', 'appraisals', $appraisal_id, null, null, 
                        'Submitted appraisal for review');
+            // Send email notifications - with error logging
+                error_log("Attempting to send appraisal submission emails for ID: {$appraisal_id}");
+                $email_result = sendAppraisalSubmissionEmails($appraisal_id);
+                error_log("Email sending result: " . ($email_result ? 'Success' : 'Failed'));
+                
             
             redirect('../index.php', 'Appraisal submitted successfully! Your manager will be notified for review.', 'success');
         } else {
