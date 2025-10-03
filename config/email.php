@@ -234,7 +234,7 @@ function sendAppraisalSubmissionEmails($appraisal_id) {
         
         $employee_message = "
             <div class='info-box'>
-                <p><strong>✓ Your appraisal has been successfully submitted!</strong></p>
+                <p><strong> Your appraisal has been successfully submitted!</strong></p>
             </div>
             <p><strong>Appraisal Period:</strong> " . formatDate($data['appraisal_period_from']) . " - " . formatDate($data['appraisal_period_to']) . "</p>
             <p>Your manager will review your appraisal and provide feedback soon. You will receive another notification once the review is complete.</p>
@@ -265,7 +265,7 @@ function sendAppraisalSubmissionEmails($appraisal_id) {
             
             $manager_message = "
                 <div class='info-box'>
-                    <p><strong>📋 New appraisal ready for your review</strong></p>
+                    <p><strong> New appraisal ready for your review</strong></p>
                 </div>
                 <p><strong>{$data['employee_name']}</strong> has submitted their performance appraisal for your review.</p>
                 <p><strong>Appraisal Period:</strong> " . formatDate($data['appraisal_period_from']) . " - " . formatDate($data['appraisal_period_to']) . "</p>
@@ -354,7 +354,7 @@ function sendReviewCompletionEmails($appraisal_id) {
         error_log("--- Sending completion email to EMPLOYEE ---");
         $employee_message = "
             <div class='info-box'>
-                <p><strong>✓ Your appraisal review is complete!</strong></p>
+                <p><strong>Your appraisal review is complete!</strong></p>
             </div>
             <p>Your performance appraisal has been reviewed and completed by your manager.</p>
             <p>
@@ -396,7 +396,7 @@ function sendReviewCompletionEmails($appraisal_id) {
             error_log("--- Sending confirmation email to MANAGER ---");
             $manager_message = "
                 <div class='info-box'>
-                    <p><strong>✓ Appraisal Review Completed</strong></p>
+                    <p><strong>Appraisal Review Completed</strong></p>
                 </div>
                 <p>You have successfully completed the appraisal review for <strong>{$data['employee_name']}</strong>.</p>
                 <p>
@@ -438,7 +438,7 @@ function sendReviewCompletionEmails($appraisal_id) {
             
             $hr_message = "
                 <div class='info-box'>
-                    <p><strong>✓ HR Notification: Appraisal Review Completed</strong></p>
+                    <p><strong>HR Notification: Appraisal Review Completed</strong></p>
                 </div>
                 <p>A performance appraisal review has been completed.</p>
                 <p>

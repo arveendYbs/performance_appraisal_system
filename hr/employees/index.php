@@ -169,7 +169,7 @@ try {
                                     / <?php echo $employee['total_appraisals']; ?>
                                 </td>
                                 <td>
-                                    <a href="view.php?id=<?php echo $employee['id']; ?>" 
+                                    <a href="../../manager/employee_history.php?id=<?php echo $employee['id']; ?>" 
                                        class="btn btn-sm btn-primary">
                                         <i class="bi bi-eye me-1"></i>View
                                     </a>

@@ -100,6 +100,124 @@ if (!$appraisal_data) {
 }
 ?>
 
+<!-- Print Header -->
+<div class="print-header">
+    <h1>Performance Appraisal Report</h1>
+    <p><strong>YBS International - Manager Review Copy</strong></p>
+    <p>Confidential Document - For Internal Use Only</p>
+</div>
+
+<!-- Employee Info for Print -->
+<div class="employee-info-print">
+    <table>
+        <tr>
+            <td>Employee Name:</td>
+            <td><strong><?php echo htmlspecialchars($appraisal_data['employee_name']); ?></strong></td>
+            <td>Employee No:</td>
+            <td><strong><?php echo htmlspecialchars($appraisal_data['emp_number']); ?></strong></td>
+        </tr>
+        <tr>
+            <td>Position:</td>
+            <td><?php echo htmlspecialchars($appraisal_data['position']); ?></td>
+            <td>Department:</td>
+            <td><?php echo htmlspecialchars($appraisal_data['department']); ?></td>
+        </tr>
+        <tr>
+            <td>Site/Location:</td>
+            <td><?php echo htmlspecialchars($appraisal_data['site']); ?></td>
+            <td>Appraisal Period:</td>
+            <td>
+                <?php echo formatDate($appraisal_data['appraisal_period_from'], 'd M Y'); ?> - 
+                <?php echo formatDate($appraisal_data['appraisal_period_to'], 'd M Y'); ?>
+            </td>
+        </tr>
+        <tr>
+            <td>Reviewer:</td>
+            <td><?php echo htmlspecialchars($appraisal_data['appraiser_name'] ?? 'Not Assigned'); ?></td>
+            <td>Review Status:</td>
+            <td><strong><?php echo strtoupper(str_replace('_', ' ', $appraisal_data['status'])); ?></strong></td>
+        </tr>
+        <?php if ($appraisal_data['status'] === 'completed'): ?>
+        <tr>
+            <td>Final Grade:</td>
+            <td><strong style="font-size: 12pt;"><?php echo $appraisal_data['grade'] ?? 'N/A'; ?></strong></td>
+            <td>Total Score:</td>
+            <td><strong><?php echo $appraisal_data['total_score'] ? number_format($appraisal_data['total_score'], 2) . '%' : 'N/A'; ?></strong></td>
+        </tr>
+        <?php endif; ?>
+    </table>
+</div>
+
+<!-- Digital Signatures / Audit Trail -->
+<div class="digital-signatures">
+    <h6>Digital Audit Trail</h6>
+    <table>
+        <tr>
+            <td>Document Created:</td>
+            <td>
+                <?php echo formatDate($appraisal_data['created_at'], 'd M Y, h:i A'); ?>
+                <br><small>By: <?php echo htmlspecialchars($appraisal_data['employee_name']); ?> (Employee)</small>
+            </td>
+        </tr>
+        <?php if (!empty($appraisal_data['employee_submitted_at'])): ?>
+        <tr>
+            <td>Submitted for Review:</td>
+            <td>
+                <?php echo formatDate($appraisal_data['employee_submitted_at'], 'd M Y, h:i A'); ?>
+                <br><small>By: <?php echo htmlspecialchars($appraisal_data['employee_name']); ?> (Employee)</small>
+            </td>
+        </tr>
+        <?php endif; ?>
+        <?php if (!empty($appraisal_data['manager_reviewed_at'])): ?>
+        <tr>
+            <td>Reviewed By:</td>
+            <td>
+                <strong><?php echo htmlspecialchars($appraisal_data['appraiser_name'] ?? 'Not Assigned'); ?></strong> (Manager/Reviewer)
+            </td>
+        </tr>
+        <tr>
+            <td>Review Completed On:</td>
+            <td>
+                <?php echo formatDate($appraisal_data['manager_reviewed_at'], 'd M Y, h:i A'); ?>
+            </td>
+        </tr>
+        <?php endif; ?>
+        <tr>
+            <td>Document Status:</td>
+            <td><strong><?php echo strtoupper(str_replace('_', ' ', $appraisal_data['status'])); ?></strong></td>
+        </tr>
+        <tr>
+            <td>Document Generated:</td>
+            <td><?php echo date('d M Y, h:i A'); ?></td>
+        </tr>
+    </table>
+</div>
+
+<!-- Update the header section -->
+<div class="row no-print">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3 mb-0">
+                <i class="bi bi-clipboard-check me-2"></i>Appraisal Review
+            </h1>
+            <div>
+                <?php if ($appraisal_data['status'] === 'completed'): ?>
+                <a href="pending.php" class="btn btn-outline-secondary me-2">
+                    <i class="bi bi-arrow-left me-2"></i>Back to List
+                </a>
+                <?php else: ?>
+                <a href="review.php?id=<?php echo $appraisal_id; ?>" class="btn btn-outline-secondary me-2">
+                    <i class="bi bi-arrow-left me-2"></i>Continue Review
+                </a>
+                <?php endif; ?>
+                <button onclick="printAppraisal()" class="btn btn-primary">
+                    <i class="bi bi-printer me-2"></i>Print Report
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 
 <div class="row">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
@@ -127,95 +245,106 @@ if (!$appraisal_data) {
             </div>
         </div>
     </div>
-</div>
-
-<!-- Appraisal Summary -->
+</div> -->
+<!-- Appraisal Summary - Manager View -->
 <div class="card mb-4">
-    <div class="card-header">
+    <div class="card-header bg-success text-white">
         <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Appraisal Summary</h5>
     </div>
     <div class="card-body">
-        <div class="row">
-            <div class="col-md-3">
-                <h6>Employee Information</h6>
-                <p>
-                    <strong><?php echo htmlspecialchars($appraisal_data['employee_name']); ?></strong><br>
-                    <small class="text-muted"><?php echo htmlspecialchars($appraisal_data['emp_number']); ?></small><br>
-                    <?php echo htmlspecialchars($appraisal_data['position']); ?><br>
-                    <small class="text-muted"><?php echo htmlspecialchars($appraisal_data['department']); ?> | <?php echo htmlspecialchars($appraisal_data['site']); ?></small>
-                </p>
-            </div>
-            <div class="col-md-3">
-                <h6>Appraisal Period</h6>
-                <p>
-                    <strong><?php echo formatDate($appraisal_data['appraisal_period_from'], 'M Y'); ?> - 
-                    <?php echo formatDate($appraisal_data['appraisal_period_to'], 'M Y'); ?></strong><br>
-                    <small class="text-muted">
-                        <?php echo formatDate($appraisal_data['appraisal_period_from']); ?> - 
-                        <?php echo formatDate($appraisal_data['appraisal_period_to']); ?>
-                    </small>
-                </p>
-            </div>
-            <div class="col-md-3">
-                <h6>Form Type</h6>
-                <p>
-                    <?php echo htmlspecialchars($appraisal_data['form_title']); ?><br>
-                    <span class="badge bg-<?php echo $appraisal_data['form_type'] == 'management' ? 'primary' : ($appraisal_data['form_type'] == 'general' ? 'info' : 'success'); ?>">
-                        <?php echo ucfirst($appraisal_data['form_type']); ?> Staff
-                    </span>
-                </p>
-            </div>
-            <div class="col-md-3">
-                <h6>Performance Summary</h6>
-                <?php if ($appraisal_data['grade']): ?>
-                <p>
-                    <span class="badge bg-light <?php echo getGradeColorClass($appraisal_data['grade']); ?> fs-6">
-                        Grade: <?php echo $appraisal_data['grade']; ?>
-                    </span><br>
-                    <?php if ($appraisal_data['total_score']): ?>
-                    <strong><?php echo $appraisal_data['total_score']; ?>%</strong>
-                    <?php endif; ?>
-                </p>
-                <?php else: ?>
-                <p class="text-muted">Not yet graded</p>
-                <?php endif; ?>
-            </div>
-        </div>
-        
-        <div class="row mt-3">
+        <div class="row mb-3">
+            <!-- Left Column - Employee Info -->
             <div class="col-md-4">
-                <h6>Timeline</h6>
-                <ul class="list-unstyled">
-                    <li><small><strong>Created:</strong> <?php echo formatDate($appraisal_data['created_at'], 'M d, Y H:i'); ?></small></li>
-                    <?php if ($appraisal_data['employee_submitted_at']): ?>
-                    <li><small><strong>Submitted:</strong> <?php echo formatDate($appraisal_data['employee_submitted_at'], 'M d, Y H:i'); ?></small></li>
-                    <?php endif; ?>
-                    <?php if ($appraisal_data['manager_reviewed_at']): ?>
-                    <li><small><strong>Completed:</strong> <?php echo formatDate($appraisal_data['manager_reviewed_at'], 'M d, Y H:i'); ?></small></li>
-                    <?php endif; ?>
-                </ul>
+                <div class="border-start border-primary border-3 ps-3">
+                    <h6 class="text-primary mb-2">Employee Information</h6>
+                    <p class="mb-1">
+                        <strong><?php echo htmlspecialchars($appraisal_data['employee_name']); ?></strong>
+                    </p>
+                    <p class="mb-1">
+                        <small class="text-muted">
+                            <?php echo htmlspecialchars($appraisal_data['emp_number']); ?><br>
+                            <?php echo htmlspecialchars($appraisal_data['position']); ?><br>
+                            <?php echo htmlspecialchars($appraisal_data['department']); ?>
+                        </small>
+                    </p>
+                </div>
             </div>
+            
+            <!-- Middle Column - Status & Timeline -->
             <div class="col-md-4">
-                <h6>Reviewer</h6>
-                <p>
-                    <?php if ($appraisal_data['appraiser_name']): ?>
-                        <?php echo htmlspecialchars($appraisal_data['appraiser_name']); ?>
+                <div class="border-start border-info border-3 ps-3">
+                    <h6 class="text-info mb-2">Status & Timeline</h6>
+                    <div class="mb-2">
+                        <span class="badge <?php echo getStatusBadgeClass($appraisal_data['status']); ?> fs-6">
+                            <?php echo ucwords(str_replace('_', ' ', $appraisal_data['status'])); ?>
+                        </span>
+                    </div>
+                    <p class="mb-1">
+                        <small>
+                            <i class="bi bi-calendar-plus text-muted"></i> 
+                            <strong>Created:</strong> <?php echo formatDate($appraisal_data['created_at'], 'd M Y'); ?>
+                        </small>
+                    </p>
+                    <?php if (!empty($appraisal_data['employee_submitted_at'])): ?>
+                    <p class="mb-1">
+                        <small>
+                            <i class="bi bi-send-check text-success"></i> 
+                            <strong>Submitted:</strong> <?php echo formatDate($appraisal_data['employee_submitted_at'], 'd M Y'); ?>
+                        </small>
+                    </p>
+                    <?php endif; ?>
+                    <?php if (!empty($appraisal_data['manager_reviewed_at'])): ?>
+                    <p class="mb-1">
+                        <small>
+                            <i class="bi bi-check-circle text-success"></i> 
+                            <strong>Reviewed:</strong> <?php echo formatDate($appraisal_data['manager_reviewed_at'], 'd M Y'); ?>
+                        </small>
+                    </p>
+                    <?php if (!empty($appraisal_data['appraiser_name'])): ?>
+                    <p class="mb-0">
+                        <small>
+                            <i class="bi bi-person-check text-muted"></i> 
+                            <strong>By:</strong> <?php echo htmlspecialchars($appraisal_data['appraiser_name']); ?>
+                        </small>
+                    </p>
                     <?php else: ?>
-                        <span class="text-muted">Not assigned</span>
+                    <p class="mb-0">
+                        <small>
+                            <i class="bi bi-person-x text-muted"></i> 
+                            <strong>By:</strong> <em class="text-muted">Not Assigned</em>
+                        </small>
+                    </p>
                     <?php endif; ?>
-                </p>
+                    <?php endif; ?>
+                </div>
             </div>
+            
+            <!-- Right Column - Results -->
             <div class="col-md-4">
-                <h6>Performance Statistics</h6>
-                <?php if ($performance_stats['total_questions'] > 0): ?>
-                <small>
-                    <strong>Avg Employee Score:</strong> <?php echo $performance_stats['average_employee_rating']; ?><br>
-                    <strong>Avg Manager Score:</strong> <?php echo $performance_stats['average_manager_rating']; ?><br>
-                    <strong>Questions Answered:</strong> <?php echo $performance_stats['answered_questions']; ?>/<?php echo $performance_stats['total_questions']; ?>
-                </small>
-                <?php else: ?>
-                <small class="text-muted">No performance scores available</small>
-                <?php endif; ?>
+                <div class="border-start border-success border-3 ps-3">
+                    <h6 class="text-success mb-2">Review Results</h6>
+                    <?php if ($appraisal_data['status'] === 'completed'): ?>
+                        <?php if (!empty($appraisal_data['grade'])): ?>
+                        <div class="mb-2">
+                            <span class="badge bg-success fs-4"><?php echo $appraisal_data['grade']; ?></span>
+                            <small class="text-muted ms-2">Final Grade</small>
+                        </div>
+                        <?php endif; ?>
+                        <?php if (!empty($appraisal_data['total_score'])): ?>
+                        <p class="mb-2">
+                            <strong>Overall Score:</strong> 
+                            <span class="fs-5 text-success"><?php echo number_format($appraisal_data['total_score'], 1); ?>%</span>
+                        </p>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <div class="alert alert-warning py-2 mb-0">
+                            <small>
+                                <i class="bi bi-clock me-1"></i>
+                                Review in progress
+                            </small>
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
     </div>
@@ -504,22 +633,292 @@ if (!$appraisal_data) {
 </div>
 <?php endif; ?>
 
+<!-- Print Footer -->
+<div class="print-footer">
+    <p>This is a computer-generated document. No physical signature required.</p>
+    <p><strong>Confidential:</strong> For internal use only. Do not distribute without authorization.</p>
+</div>
 <style>
 @media print {
-    .btn, .card-header, .no-print {
+    /* Hide elements not needed in print */
+    .sidebar,
+    .navbar,
+    .btn,
+    .no-print,
+    .breadcrumb,
+    .alert,
+    .back-button,
+    .d-flex.justify-content-between {
         display: none !important;
     }
-    .card {
-        border: 1px solid #000 !important;
-        box-shadow: none !important;
-        margin-bottom: 1rem !important;
+    
+    /* Page setup */
+    @page {
+        size: A4 portrait;
+        margin: 2cm 1.5cm;
     }
+    
+    body {
+        font-size: 10pt;
+        line-height: 1.3;
+        color: #000;
+        background: white !important;
+    }
+    
+    /* Print header with company logo space */
+    .print-header {
+        display: block !important;
+        text-align: center;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 3px solid #000;
+        page-break-after: avoid;
+    }
+    
+    .print-header h1 {
+        font-size: 16pt;
+        margin: 0 0 5px 0;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+    
+    .print-header p {
+        margin: 3px 0;
+        font-size: 9pt;
+    }
+    
+    /* Employee info box - condensed */
+    .employee-info-print {
+        display: block !important;
+        margin: 0 0 20px 0;
+        padding: 8px;
+        border: 2px solid #000;
+        page-break-inside: avoid;
+        page-break-after: avoid;
+    }
+    
+    .employee-info-print table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 9pt;
+    }
+    
+    .employee-info-print td {
+        padding: 3px 5px;
+        border: none;
+        vertical-align: top;
+    }
+    
+    .employee-info-print td:first-child {
+        font-weight: bold;
+        width: 25%;
+    }
+    
+    .employee-info-print td:nth-child(3) {
+        font-weight: bold;
+        width: 25%;
+    }
+    
+    /* Digital signature section */
+    .digital-signatures {
+        display: block !important;
+        margin: 20px 0;
+        padding: 10px;
+        background: #f5f5f5 !important;
+        border: 1px solid #333;
+        page-break-inside: avoid;
+        page-break-after: avoid;
+    }
+    
+    .digital-signatures h6 {
+        font-size: 10pt;
+        margin: 0 0 8px 0;
+        font-weight: bold;
+        border-bottom: 1px solid #666;
+        padding-bottom: 5px;
+    }
+    
+    .digital-signatures table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 9pt;
+    }
+    
+    .digital-signatures td {
+        padding: 4px 5px;
+        border-bottom: 1px dotted #ccc;
+    }
+    
+    .digital-signatures td:first-child {
+        font-weight: bold;
+        width: 30%;
+    }
+    
+    /* Cards - more compact */
+    .card {
+        border: 1px solid #666 !important;
+        box-shadow: none !important;
+        margin-bottom: 12px;
+        page-break-inside: avoid;
+    }
+    
+    .card-header {
+        background-color: #e8e8e8 !important;
+        color: #000 !important;
+        padding: 6px 8px !important;
+        border-bottom: 2px solid #000 !important;
+        font-weight: bold;
+        font-size: 11pt;
+        page-break-after: avoid;
+    }
+    
+    .card-body {
+        padding: 8px !important;
+    }
+    
+    /* Section breaks for better pagination */
+    .card:nth-child(3n) {
+        page-break-after: auto;
+    }
+    
+    /* Question blocks - more compact */
+    .mb-4.pb-4.border-bottom {
+        margin-bottom: 10px !important;
+        padding-bottom: 8px !important;
+        page-break-inside: avoid;
+    }
+    
+    h6.fw-bold {
+        font-size: 9.5pt;
+        margin-bottom: 6px !important;
+        page-break-after: avoid;
+    }
+    
+    /* Response columns - side by side */
+    .row > .col-md-6 {
+        width: 48%;
+        float: left;
+        padding: 5px;
+        page-break-inside: avoid;
+    }
+    
+    .row > .col-md-6:first-child {
+        margin-right: 4%;
+    }
+    
+    .row::after {
+        content: "";
+        display: table;
+        clear: both;
+    }
+    
+    /* Response boxes */
+    .bg-light,
+    .bg-primary.bg-opacity-10,
+    .bg-success.bg-opacity-10 {
+        background-color: #f9f9f9 !important;
+        padding: 6px !important;
+        border: 1px solid #ddd !important;
+        font-size: 9pt;
+        min-height: 30px;
+    }
+    
+    /* Badges - print friendly */
     .badge {
         border: 1px solid #000 !important;
+        padding: 2px 5px !important;
+        background-color: white !important;
         color: #000 !important;
-        background: transparent !important;
+        font-weight: bold !important;
+        font-size: 9pt !important;
+    }
+    
+    /* Hide manual signatures */
+    .signatures-section {
+        display: none !important;
+    }
+    
+    /* Print footer */
+    .print-footer {
+        display: block !important;
+        margin-top: 15px;
+        padding-top: 8px;
+        border-top: 1px solid #999;
+        text-align: center;
+        font-size: 8pt;
+        color: #666 !important;
+        page-break-inside: avoid;
+    }
+    
+    /* Page numbers */
+    .print-footer::after {
+        content: "Page " counter(page);
+    }
+    
+    /* Remove extra spacing */
+    p, ul, ol {
+        margin: 3px 0 !important;
+    }
+    
+    /* Small text even smaller */
+    small, .small {
+        font-size: 8pt !important;
+    }
+    
+    /* Force grayscale */
+    * {
+        color-adjust: exact !important;
+        -webkit-print-color-adjust: exact !important;
+    }
+    
+    /* Orphans and widows control */
+    p, h6, .card-header {
+        orphans: 3;
+        widows: 3;
+    }
+    
+    /* Avoid breaking inside important elements */
+    .card-header,
+    h5, h6,
+    .employee-info-print,
+    .digital-signatures {
+        page-break-after: avoid;
+        page-break-inside: avoid;
+    }
+    
+    /* Better rating display */
+    .border-start.border-3 {
+        border-left: 3px solid #333 !important;
     }
 }
+
+/* Screen-only styles */
+.print-header,
+.employee-info-print,
+.digital-signatures,
+.print-footer {
+    display: none;
+}
 </style>
+
+<script>
+function printAppraisal() {
+    const originalTitle = document.title;
+    document.title = 'Appraisal Report - <?php echo htmlspecialchars($appraisal_data['employee_name']); ?>';
+    
+    setTimeout(function() {
+        window.print();
+        document.title = originalTitle;
+    }, 100);
+}
+
+// Keyboard shortcut
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'p') {
+        e.preventDefault();
+        printAppraisal();
+    }
+});
+</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
