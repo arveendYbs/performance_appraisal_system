@@ -21,6 +21,7 @@ class User {
     public $updated_at;
     public $company_id;
     public $is_hr;
+    public $is_confirmed;
 
     public function __construct($db) {
         $this->conn = $db;
@@ -71,7 +72,7 @@ class User {
                    department, date_joined, site, role, company_id, is_hr, password)
                   VALUES (:name, :emp_number, :email, :emp_email, :position, 
                           :direct_superior, :department, :date_joined, :site, :role, 
-                          :company_id, :is_hr, :password)";
+                          :company_id, :is_hr, :is_confirmed, :password)";
 
         $stmt = $this->conn->prepare($query);
 
@@ -97,6 +98,7 @@ class User {
         $stmt->bindParam(':role', $this->role);
         $stmt->bindParam(':company_id', $this->company_id);
         $stmt->bindParam(':is_hr', $this->is_hr);
+        $stmt->bindParam(':is_confirmed', $this->is_confirmed);
 
         $hashed_password = password_hash($this->password, HASH_ALGO);
         $stmt->bindParam(':password', $hashed_password);
@@ -113,7 +115,7 @@ class User {
 
         $query = "SELECT u.id, u.name, u.emp_number, u.email, u.emp_email, u.position, 
                          u.direct_superior, u.department, u.date_joined, u.site, u.role, 
-                         u.company_id, u.is_hr, u.is_active, u.created_at,
+                         u.company_id, u.is_hr, u.is_confirmed, u.is_active, u.created_at,
                          s.name as superior_name, c.name as company_name
                   FROM " . $this->table_name . " u
                   LEFT JOIN " . $this->table_name . " s ON u.direct_superior = s.id
@@ -144,9 +146,9 @@ class User {
      * UPDATED - Read one user (include company_id and is_hr)
      */
     public function readOne() {
-        $query = "SELECT u.id, u.name, u.emp_number, u.email, u.emp_email, u.position, 
+        $query = "SELECT u.id, u.name, u.emp_number, u.email, u.emp_email,u.password, u.position, 
                          u.direct_superior, u.department, u.date_joined, u.site, u.role, 
-                         u.company_id, u.is_hr, u.is_active, u.created_at, u.updated_at,
+                         u.company_id, u.is_hr, u.is_confirmed, u.is_active, u.created_at, u.updated_at,
                          s.name as superior_name, c.name as company_name
                   FROM " . $this->table_name . " u
                   LEFT JOIN " . $this->table_name . " s ON u.direct_superior = s.id
@@ -164,6 +166,7 @@ class User {
             $this->emp_number = $row['emp_number'];
             $this->email = $row['email'];
             $this->emp_email = $row['emp_email'];
+            $this->password = $row['password'];
             $this->position = $row['position'];
             $this->direct_superior = $row['direct_superior'];
             $this->department = $row['department'];
@@ -172,6 +175,7 @@ class User {
             $this->role = $row['role'];
             $this->company_id = $row['company_id'];
             $this->is_hr = $row['is_hr'];
+            $this->is_confirmed = $row['is_confirmed'];
             $this->is_active = $row['is_active'];
             $this->created_at = $row['created_at'];
             $this->updated_at = $row['updated_at'];
@@ -192,7 +196,8 @@ class User {
                       emp_email = :emp_email, position = :position,
                       direct_superior = :direct_superior, department = :department,
                       date_joined = :date_joined, site = :site, role = :role,
-                      company_id = :company_id, is_hr = :is_hr, is_active = :is_active
+                      company_id = :company_id, is_hr = :is_hr, is_active = :is_active,
+                      is_confirmed = :is_confirmed
                   WHERE id = :id";
 
         $stmt = $this->conn->prepare($query);
@@ -219,6 +224,7 @@ class User {
         $stmt->bindParam(':role', $this->role);
         $stmt->bindParam(':company_id', $this->company_id);
         $stmt->bindParam(':is_hr', $this->is_hr);
+        $stmt->bindParam(':is_confirmed', $this->is_confirmed);
         $stmt->bindParam(':is_active', $this->is_active);
         $stmt->bindParam(':id', $this->id);
 

@@ -52,6 +52,23 @@ if (!$appraisal_data) {
     while ($response = $responses_stmt->fetch(PDO::FETCH_ASSOC)) {
         $responses[$response['question_id']] = $response;
     }
+
+    // After getting form_structure
+$emp_query = "SELECT is_confirmed FROM users WHERE id = ?";
+$emp_stmt = $db->prepare($emp_query);
+$emp_stmt->execute([$appraisal_data['user_id']]);
+$employee_data = $emp_stmt->fetch(PDO::FETCH_ASSOC);
+$is_employee_confirmed = $employee_data['is_confirmed'] ?? false;
+
+// Filter sections
+$filtered_form_structure = [];
+foreach ($form_structure as $section) {
+    if ($section['visible_to'] === 'reviewer' && $is_employee_confirmed) {
+        continue; // Skip probation section for confirmed employees
+    }
+    $filtered_form_structure[] = $section;
+}
+$form_structure = $filtered_form_structure;
     
     // Calculate performance statistics
     $performance_stats = [

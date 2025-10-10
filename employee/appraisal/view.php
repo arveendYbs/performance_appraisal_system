@@ -55,6 +55,23 @@ try {
     while ($response = $responses_stmt->fetch(PDO::FETCH_ASSOC)) {
         $responses[$response['question_id']] = $response;
     }
+
+        // After getting form_structure
+    $emp_query = "SELECT is_confirmed FROM users WHERE id = ?";
+    $emp_stmt = $db->prepare($emp_query);
+    $emp_stmt->execute([$_SESSION['user_id']]);
+    $employee_data = $emp_stmt->fetch(PDO::FETCH_ASSOC);
+    $is_employee_confirmed = $employee_data['is_confirmed'] ?? false;
+
+    // Filter sections
+    $filtered_form_structure = [];
+    foreach ($form_structure as $section) {
+        if ($section['visible_to'] === 'reviewer' && $is_employee_confirmed) {
+            continue;
+        }
+        $filtered_form_structure[] = $section;
+    }
+    $form_structure = $filtered_form_structure;
     
     // Calculate performance statistics for both employee and manager
     $performance_stats = [
@@ -908,7 +925,21 @@ try {
     small, .small {
         font-size: 8pt !important;
     }
+    /* Digital signature section - UPDATED */
+    .digital-signatures {
+        display: block !important;
+        margin: 20px 0;
+        padding: 10px;
+        background: #f5f5f5 !important;
+        border: 1px solid #333;
+        page-break-inside: avoid;
+        page-break-after: always; /* FORCE PAGE BREAK AFTER AUDIT TRAIL */
+    }
     
+    /* First section/card should start on new page */
+    .card:first-of-type {
+        page-break-before: auto; /* Let it flow naturally after the forced break */
+    }
     /* Force grayscale */
     * {
         color-adjust: exact !important;

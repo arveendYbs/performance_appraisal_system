@@ -52,6 +52,7 @@ try {
             $company_id = $_POST['company_id'] ?? null;
             $is_hr = isset($_POST['is_hr']) ? 1 : 0;
             $hr_companies = $_POST['hr_companies'] ?? [];
+            $is_confirmed = isset($_POST['is_confirmed']) ? 1 : 0;
 
             // Validation
             if (empty($name) || empty($emp_number) || empty($email) || empty($position) || 
@@ -90,6 +91,7 @@ try {
                 $user->is_active = $is_active;
                 $user->company_id = $company_id;  // ADD THIS
                 $user->is_hr = $is_hr;            // ADD THIS
+                $user->is_confirmed = $is_confirmed; // ADD THIS
 
                 if ($user->update()) {
                     // Update password if provided
@@ -304,6 +306,21 @@ require_once __DIR__ . '/../../includes/header.php';
                                 </div>";
                             }
                             ?>
+                        </div>
+<!--                                 <?php var_dump($user->is_confirmed); ?>
+ -->
+                        <!-- Employment Confirmation Status -->
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_confirmed" name="is_confirmed" value="1" 
+                                    <?php echo $user->is_confirmed ? 'checked' : ''; ?>>
+                                <label class="form-check-label" for="is_confirmed">
+                                    <strong>Confirmed Employee</strong> - Employee has passed probation period
+                                </label>
+                            </div>
+                            <small class="text-muted">
+                                Unconfirmed employees will require probation assessment during appraisal reviews.
+                            </small>
                         </div>
 
                         <!-- Date Joined and Role -->

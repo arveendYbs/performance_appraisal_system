@@ -1,9 +1,9 @@
-
 <?php
 // employee/profile.php
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
+
 $error_message = '';
 $success_message = '';
 
@@ -28,52 +28,72 @@ try {
             $new_password = $_POST['new_password'] ?? '';
             $confirm_password = $_POST['confirm_password'] ?? '';
             
+            $updates = [];
+            
             // Validate email
             if (empty($email) || !validateEmail($email)) {
                 $error_message = 'Valid email is required.';
             } elseif (!empty($emp_email) && !validateEmail($emp_email)) {
                 $error_message = 'Invalid company email format.';
-            } else {
-                $updates = [];
-                
-                // Update emails if changed
-                if ($email !== $user->email || $emp_email !== $user->emp_email) {
-                    $query = "UPDATE users SET email = ?, emp_email = ? WHERE id = ?";
-                    $stmt = $db->prepare($query);
-                    $stmt->execute([$email, $emp_email, $user->id]);
-                    
-                    $_SESSION['user_email'] = $email;
-                    $updates[] = 'email updated';
+            } 
+            // Validate password if provided
+            elseif (!empty($new_password) || !empty($current_password) || !empty($confirm_password)) {
+                if (empty($current_password)) {
+                    $error_message = 'Current password is required to change password.';
+                } elseif (empty($new_password)) {
+                    $error_message = 'New password is required.';
+                } elseif ($new_password !== $confirm_password) {
+                    $error_message = 'New passwords do not match.';
+                } elseif (strlen($new_password) < 6) {
+                    $error_message = 'New password must be at least 6 characters.';
+                } elseif (!password_verify($current_password, $user->password)) {
+                    $error_message = 'Current password is incorrect.';
                 }
-                
-                // Update password if provided
-                if (!empty($new_password)) {
-                    if (empty($current_password)) {
-                        $error_message = 'Current password is required to set new password.';
-                    } elseif ($new_password !== $confirm_password) {
-                        $error_message = 'New passwords do not match.';
-                    } elseif (strlen($new_password) < 6) {
-                        $error_message = 'New password must be at least 6 characters.';
-                    } elseif (!password_verify($current_password, $user->password)) {
-                        $error_message = 'Current password is incorrect.';
-                    } else {
+            }
+            
+            // If no errors, proceed with updates
+            if (empty($error_message)) {
+                try {
+                    $db->beginTransaction();
+                    
+                    // Update emails if changed
+                    if ($email !== $user->email || $emp_email !== $user->emp_email) {
+                        $query = "UPDATE users SET email = ?, emp_email = ? WHERE id = ?";
+                        $stmt = $db->prepare($query);
+                        $stmt->execute([$email, $emp_email, $user->id]);
+                        
+                        $_SESSION['user_email'] = $email;
+                        $updates[] = 'email';
+                    }
+                    
+                    // Update password if provided
+                    if (!empty($new_password) && !empty($current_password)) {
                         $hashed_password = password_hash($new_password, HASH_ALGO);
                         $query = "UPDATE users SET password = ? WHERE id = ?";
                         $stmt = $db->prepare($query);
                         $stmt->execute([$hashed_password, $user->id]);
                         
-                        $updates[] = 'password updated';
+                        $updates[] = 'password';
                     }
-                }
-                
-                if (empty($error_message) && !empty($updates)) {
-                    logActivity($_SESSION['user_id'], 'UPDATE', 'users', $user->id, null,
-                               ['updates' => $updates], 'Updated profile: ' . implode(', ', $updates));
                     
-                    $success_message = 'Profile updated successfully!';
+                    $db->commit();
                     
-                    // Refresh user data
-                    $user->readOne();
+                    if (!empty($updates)) {
+                        logActivity($_SESSION['user_id'], 'UPDATE', 'users', $user->id, null,
+                                   ['updates' => $updates], 'Updated profile: ' . implode(', ', $updates));
+                        
+                        $success_message = 'Profile updated successfully!';
+                        
+                        // Refresh user data
+                        $user->readOne();
+                    } else {
+                        $error_message = 'No changes detected.';
+                    }
+                    
+                } catch (Exception $e) {
+                    $db->rollBack();
+                    error_log("Profile update error: " . $e->getMessage());
+                    $error_message = 'Failed to update profile. Please try again.';
                 }
             }
         }
@@ -93,6 +113,20 @@ try {
     </div>
 </div>
 
+<?php if ($error_message): ?>
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-circle me-2"></i><?php echo $error_message; ?>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+<?php endif; ?>
+
+<?php if ($success_message): ?>
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle me-2"></i><?php echo $success_message; ?>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+<?php endif; ?>
+
 <div class="row">
     <div class="col-md-4">
         <!-- Profile Card -->
@@ -111,79 +145,69 @@ try {
             </div>
         </div>
         
-        <!-- Basic Info Card -->
-        <div class="card">
+        <!-- Profile Details -->
+        <div class="card mt-3">
             <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Basic Information</h6>
+                <h6 class="mb-0">Profile Information</h6>
             </div>
             <div class="card-body">
-                <p><strong>Employee Number:</strong><br><?php echo htmlspecialchars($user->emp_number); ?></p>
-                <p><strong>Department:</strong><br><?php echo htmlspecialchars($user->department); ?></p>
-                <p><strong>Site:</strong><br><?php echo htmlspecialchars($user->site); ?></p>
-                <p><strong>Date Joined:</strong><br><?php echo formatDate($user->date_joined); ?></p>
-                
-                <?php if ($user->direct_superior): ?>
-                <?php
-                try {
-                    $supervisor_query = "SELECT name, position FROM users WHERE id = ?";
-                    $stmt = $db->prepare($supervisor_query);
-                    $stmt->execute([$user->direct_superior]);
-                    $supervisor = $stmt->fetch(PDO::FETCH_ASSOC);
-                } catch (Exception $e) {
-                    $supervisor = null;
-                }
-                ?>
-                <p><strong>Direct Superior:</strong><br>
-                <?php echo $supervisor ? htmlspecialchars($supervisor['name'] . ' - ' . $supervisor['position']) : 'N/A'; ?>
-                </p>
-                <?php endif; ?>
+                <div class="mb-2">
+                    <small class="text-muted">Employee Number</small>
+                    <p class="mb-0"><?php echo htmlspecialchars($user->emp_number); ?></p>
+                </div>
+                <hr>
+                <div class="mb-2">
+                    <small class="text-muted">Department</small>
+                    <p class="mb-0"><?php echo htmlspecialchars($user->department); ?></p>
+                </div>
+                <hr>
+                <div class="mb-2">
+                    <small class="text-muted">Site/Location</small>
+                    <p class="mb-0"><?php echo htmlspecialchars($user->site ?: 'N/A'); ?></p>
+                </div>
+                <hr>
+                <div class="mb-2">
+                    <small class="text-muted">Date Joined</small>
+                    <p class="mb-0"><?php echo formatDate($user->date_joined, 'M d, Y'); ?></p>
+                </div>
             </div>
         </div>
     </div>
     
     <div class="col-md-8">
-        <!-- Update Profile Form -->
+        <!-- Edit Profile Form -->
         <div class="card">
             <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-pencil me-2"></i>Update Profile</h6>
+                <h6 class="mb-0">Update Profile</h6>
             </div>
             <div class="card-body">
-                <?php if (!empty($error_message)): ?>
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-circle me-2"></i><?php echo htmlspecialchars($error_message); ?>
-                </div>
-                <?php endif; ?>
-                
-                <?php if (!empty($success_message)): ?>
-                <div class="alert alert-success">
-                    <i class="bi bi-check-circle me-2"></i><?php echo htmlspecialchars($success_message); ?>
-                </div>
-                <?php endif; ?>
-                
                 <form method="POST" action="">
                     <input type="hidden" name="csrf_token" value="<?php echo generateCSRFToken(); ?>">
                     
+                    <h6>Contact Information</h6>
                     <div class="mb-3">
                         <label for="email" class="form-label">Personal Email <span class="text-danger">*</span></label>
                         <input type="email" class="form-control" id="email" name="email" required
                                value="<?php echo htmlspecialchars($user->email); ?>">
-                        <div class="form-text">Used for login</div>
+                        <div class="form-text">This email is used for login and notifications</div>
                     </div>
                     
                     <div class="mb-3">
                         <label for="emp_email" class="form-label">Company Email</label>
                         <input type="email" class="form-control" id="emp_email" name="emp_email"
-                               value="<?php echo htmlspecialchars($user->emp_email ?? ''); ?>">
+                               value="<?php echo htmlspecialchars($user->emp_email ?: ''); ?>">
                         <div class="form-text">Optional - can also be used for login</div>
                     </div>
                     
-                    <hr>
+                    <hr class="my-4">
+                    
                     <h6>Change Password</h6>
-                    <p class="text-muted small">Leave blank to keep current password</p>
+                    <p class="text-muted small">Leave all password fields blank to keep current password</p>
                     
                     <div class="mb-3">
                         <label for="current_password" class="form-label">Current Password</label>
                         <input type="password" class="form-control" id="current_password" name="current_password">
+                        <div class="form-text">Required to change password</div>
                     </div>
                     
                     <div class="row">
@@ -216,28 +240,57 @@ try {
 <script>
 // Password validation
 document.addEventListener('DOMContentLoaded', function() {
+    const currentPassword = document.getElementById('current_password');
     const newPassword = document.getElementById('new_password');
     const confirmPassword = document.getElementById('confirm_password');
-    const currentPassword = document.getElementById('current_password');
+    const form = document.querySelector('form');
     
     function validatePasswords() {
-        if (newPassword.value && newPassword.value !== confirmPassword.value) {
-            confirmPassword.setCustomValidity('Passwords do not match');
-        } else {
-            confirmPassword.setCustomValidity('');
-        }
+        // Check if any password field has content
+        const anyPasswordFilled = currentPassword.value || newPassword.value || confirmPassword.value;
         
-        // Require current password if new password is provided
-        if (newPassword.value && !currentPassword.value) {
-            currentPassword.setCustomValidity('Current password required');
+        if (anyPasswordFilled) {
+            // If any password field is filled, all password fields become required
+            if (!currentPassword.value) {
+                currentPassword.setCustomValidity('Current password is required to change password');
+            } else {
+                currentPassword.setCustomValidity('');
+            }
+            
+            if (!newPassword.value) {
+                newPassword.setCustomValidity('New password is required');
+            } else if (newPassword.value.length < 6) {
+                newPassword.setCustomValidity('Password must be at least 6 characters');
+            } else {
+                newPassword.setCustomValidity('');
+            }
+            
+            if (!confirmPassword.value) {
+                confirmPassword.setCustomValidity('Please confirm your new password');
+            } else if (newPassword.value !== confirmPassword.value) {
+                confirmPassword.setCustomValidity('Passwords do not match');
+            } else {
+                confirmPassword.setCustomValidity('');
+            }
         } else {
+            // If all password fields are empty, clear validation
             currentPassword.setCustomValidity('');
+            newPassword.setCustomValidity('');
+            confirmPassword.setCustomValidity('');
         }
     }
     
+    currentPassword.addEventListener('input', validatePasswords);
     newPassword.addEventListener('input', validatePasswords);
     confirmPassword.addEventListener('input', validatePasswords);
-    currentPassword.addEventListener('input', validatePasswords);
+    
+    form.addEventListener('submit', function(e) {
+        validatePasswords();
+        if (!form.checkValidity()) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    });
 });
 </script>
 

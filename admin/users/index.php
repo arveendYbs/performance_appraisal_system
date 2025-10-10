@@ -68,7 +68,9 @@ try {
                                 <th>Position</th>
                                 <th>Department</th>
                                 <th>Site</th>
+                                <th>Company</th>
                                 <th>Role</th>
+                                <th>Employment</th>
                                 <th>Superior</th>
                                 <th>Status</th>
                                 <th>Actions</th>
@@ -93,10 +95,20 @@ try {
                                 <td><?php echo htmlspecialchars($user_data['position']); ?></td>
                                 <td><?php echo htmlspecialchars($user_data['department']); ?></td>
                                 <td><?php echo htmlspecialchars($user_data['site']); ?></td>
+                                <td><?php echo htmlspecialchars($user_data['company_name'] ?? 'N/A'); ?></td>
                                 <td>
                                     <span class="badge bg-<?php echo $user_data['role'] == 'admin' ? 'danger' : ($user_data['role'] == 'manager' ? 'warning' : 'info'); ?>">
                                         <?php echo ucfirst($user_data['role']); ?>
                                     </span>
+                                </td>
+                                <td>
+                                    <?php if ($user_data['is_confirmed']): ?>
+                                        <span class="badge bg-success">Confirmed</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-warning">Probation</span>
+                                    <?php endif; ?>
+
+
                                 </td>
                                 <td>
                                     <small><?php echo htmlspecialchars($user_data['superior_name'] ?? 'None'); ?></small>

@@ -166,11 +166,11 @@ try {
                                 <td><?php echo htmlspecialchars($employee['manager_name'] ?? 'N/A'); ?></td>
                                 <td>
                                     <span class="badge bg-info"><?php echo $employee['completed_appraisals']; ?></span>
-                                    / <?php echo $employee['total_appraisals']; ?>
+                                     <?php echo $employee['total_appraisals']; ?>
                                 </td>
                                 <td>
-                                    <a href="../../manager/employee_history.php?id=<?php echo $employee['id']; ?>" 
-                                       class="btn btn-sm btn-primary">
+<a href="history.php?id=<?php echo $employee['id']; ?>"
+                                   class="btn btn-sm btn-primary">
                                         <i class="bi bi-eye me-1"></i>View
                                     </a>
                                 </td>

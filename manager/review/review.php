@@ -47,6 +47,7 @@ try {
     $form->id = $appraisal_data['form_id'];
     $form_structure = $form->getFormStructure('reviewer');
 
+
      /* // Simple visibility check function for manager
     function isSectionVisibleToManager($section_id, $db) {
         $query = "SELECT visible_to FROM form_sections WHERE id = ?";
@@ -75,13 +76,32 @@ try {
     while ($response = $responses_stmt->fetch(PDO::FETCH_ASSOC)) {
         $responses[$response['question_id']] = $response;
     }
-    
+
+
+
 } catch (Exception $e) {
     error_log("Review appraisal error: " . $e->getMessage());
     redirect('pending.php', 'An error occurred. Please try again.', 'error');
 }
 
 
+    // Get employee's confirmation status
+    $emp_query = "SELECT is_confirmed FROM users WHERE id = ?";
+    $emp_stmt = $db->prepare($emp_query);
+    $emp_stmt->execute([$appraisal_data['user_id']]);
+    $employee_data = $emp_stmt->fetch(PDO::FETCH_ASSOC);
+    $is_employee_confirmed = $employee_data['is_confirmed'] ?? false;
+
+        // Filter out probation sections for confirmed employees
+    $filtered_form_structure = [];
+    foreach ($form_structure as $section) {
+        // Skip reviewer-only sections (probation) if employee is confirmed
+        if ($section['visible_to'] === 'reviewer' && $is_employee_confirmed) {
+            continue; // Skip this section
+        }
+        $filtered_form_structure[] = $section;
+    }
+        $form_structure = $filtered_form_structure;
 // Handle form submission for manager feedback
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {

@@ -183,3 +183,6 @@ ENUM('text', 'textarea', 'rating_5', 'rating_10', 'checkbox', 'radio', 'attachme
 -- Add visible_to column to form_sections
 ALTER TABLE form_sections ADD COLUMN visible_to ENUM('both', 'employee', 'reviewer') DEFAULT 'both' 
 AFTER section_order;
+
+ALTER TABLE users
+ADD COLUMN is_confirmed BOOLEAN DEFAULT FALSE AFTER is_hr;

@@ -28,6 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $confirm_password = $_POST['confirm_password'] ?? '';
         $company_id = $_POST['company_id'] ?? null;
         $is_hr = isset($_POST['is_hr']) ? 1 : 0;
+        $is_confirmed = isset($_POST['is_confirmed']) ? 1 : 0;
         $hr_companies = $_POST['hr_companies'] ?? [];
 
         // Validation
@@ -62,6 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $user->role = $role;
                 $user->company_id = $company_id;  // ADD THIS
                 $user->is_hr = $is_hr;            // ADD THIS
+                $user->is_confirmed = $is_confirmed; // ADD THIS
                 $user->password = $password;
 
                 if ($user->create()) {
@@ -253,8 +255,24 @@ require_once __DIR__ . '/../../includes/header.php';
                                 </label>
                             </div>";
                         }
+
+
                         ?>
                     </div>
+
+                    <!-- Employment Confirmation Status -->
+                     <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_confirmed" name="is_confirmed" value="1">
+                            <label class="form-check-label" for="is_confirmed">
+                                <strong>Employment Confirmed</strong> - Check if the employee's employment status is confirmed.
+                            </label>
+                        </div>
+                        <small class="text-muted">
+                            Unconfirmed employees may have limited access until their status is updated.
+                        </small>
+                    </div>
+
                     
                     <div class="row">
                         <div class="col-md-6">
