@@ -69,7 +69,7 @@ class User {
     public function create() {
         $query = "INSERT INTO " . $this->table_name . "
                   (name, emp_number, email, emp_email, position, direct_superior, 
-                   department, date_joined, site, role, company_id, is_hr, password)
+                   department, date_joined, site, role, company_id, is_hr, is_confirmed, password)
                   VALUES (:name, :emp_number, :email, :emp_email, :position, 
                           :direct_superior, :department, :date_joined, :site, :role, 
                           :company_id, :is_hr, :is_confirmed, :password)";

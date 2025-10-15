@@ -186,3 +186,178 @@ AFTER section_order;
 
 ALTER TABLE users
 ADD COLUMN is_confirmed BOOLEAN DEFAULT FALSE AFTER is_hr;
+
+
+-- Create import table for bulk user uploads 1.0
+CREATE TABLE users_import (
+  emp_number VARCHAR(50),
+  name VARCHAR(255),
+  date_joined DATE,
+  confirmed_date DATE,
+  email VARCHAR(255),
+  emp_email VARCHAR(255),
+  position VARCHAR(255),
+  direct_superior VARCHAR(255),
+  department VARCHAR(255),
+  company_name VARCHAR(255),
+  company_id VARCHAR(255),
+  site VARCHAR(255),
+  role ENUM('admin','manager','employee','worker'),
+  is_hr TINYINT(1),
+  is_confirmed TINYINT(1),
+    is_active TINYINT(1),
+  password VARCHAR(255)
+);
+
+
+
+--create test table 2.0
+CREATE TABLE users_test LIKE users;
+INSERT INTO users_test SELECT * FROM users;
+
+--optional 2.1
+$2y$10$pk0AN2WOESsjOMwuQ9L8D.57z3Vg9CRB.ii80VHK9.HQ9eIpNBefa
+
+-- delete test records
+SELECT * FROM users_test
+WHERE id >= 20;
+
+--2.5 import csv into imports users
+in table
+--comp id  3.0
+
+INSERT IGNORE INTO users_test (
+  emp_number, name, date_joined, email, emp_email, position, direct_superior,
+  department, company_id, site, role, is_hr, is_confirmed
+)
+SELECT
+  ui.emp_number,
+  ui.name,
+  ui.date_joined,
+  ui.email,
+  ui.emp_email,
+  ui.position,
+  u.id AS direct_superior,
+  ui.department,
+  c.id AS company_id,
+  ui.site,
+  ui.role,
+  ui.is_hr,
+  ui.is_confirmed
+FROM users_import ui
+LEFT JOIN users u 
+  ON LOWER(TRIM(u.name)) = LOWER(TRIM(ui.direct_superior))
+LEFT JOIN companies c 
+  ON LOWER(TRIM(c.id)) = LOWER(TRIM(ui.company_id));
+
+
+--3.5
+--temp column in users_import
+ALTER TABLE users_import ADD COLUMN direct_superior_id INT NULL;
+
+
+--test join TESTING 4.0
+SELECT 
+  ui.name AS employee_name,
+  ui.direct_superior AS original_superior_text,
+
+  TRIM(
+    SUBSTRING_INDEX(
+      SUBSTRING_INDEX(ui.direct_superior, ',', 1),
+    '(', 1)
+  ) AS cleaned_superior_name,
+
+  ut.id AS matched_superior_id,
+  ut.name AS matched_superior_name
+
+FROM users_import1 ui
+LEFT JOIN users_test1 ut 
+  ON LOWER(
+       REPLACE(
+         REPLACE(
+           REPLACE(
+             TRIM(ut.name),
+           '.', ''), ',', ''), '  ', ' ')
+     ) =
+     LOWER(
+       REPLACE(
+         REPLACE(
+           REPLACE(
+             TRIM(
+               SUBSTRING_INDEX(
+                 SUBSTRING_INDEX(ui.direct_superior, ',', 1),
+               '(', 1)
+             ),
+           '.', ''), ',', ''), '  ', ' ')
+     )
+
+ORDER BY ui.direct_superior
+LIMIT 50;
+
+-- 5.0 add column to users_import1
+ALTER TABLE users_import1 ADD COLUMN matched_superior_id INT NULL;
+
+--6.0 update matched_superior_id
+UPDATE users_import1 ui
+LEFT JOIN users_test1 ut 
+  ON LOWER(
+       REPLACE(
+         REPLACE(
+           REPLACE(
+             TRIM(ut.name),
+           '.', ''), ',', ''), '  ', ' ')
+     ) =
+     LOWER(
+       REPLACE(
+         REPLACE(
+           REPLACE(
+             TRIM(
+               SUBSTRING_INDEX(
+                 SUBSTRING_INDEX(ui.direct_superior, ',', 1),
+               '(', 1)
+             ),
+           '.', ''), ',', ''), '  ', ' ')
+     )
+SET ui.matched_superior_id = ut.id;
+
+--7.0 verify matched_superior_id
+SELECT 
+  ui.name AS employee_name,
+  ui.direct_superior AS original_superior_text,
+  ui.matched_superior_id,
+  ut.name AS matched_superior_name
+FROM users_import1 ui
+LEFT JOIN users_test1 ut 
+  ON ui.matched_superior_id = ut.id
+ORDER BY ui.direct_superior
+LIMIT 50;
+
+--8.0 update direct_superior_id in users_test1
+UPDATE users_test1 ut
+JOIN users_import1 ui 
+  ON LOWER(TRIM(ut.name)) = LOWER(TRIM(ui.name))
+SET ut.direct_superior = ui.matched_superior_id
+WHERE ui.matched_superior_id IS NOT NULL;
+
+-- Step 1: rename the current users table to users_backup
+RENAME TABLE users TO users_backup;
+
+-- Step 2: rename your test table to become the main users table
+RENAME TABLE users_test1 TO users;
+
+
+
+
+--insert into users from users_import
+INSERT INTO users_test (
+    name, emp_number, email, emp_email, position,
+    direct_superior, department, company_id, date_joined,
+    site, role, is_hr, is_confirmed, password, is_active
+)
+SELECT
+    ui.name, ui.emp_number, ui.email, ui.emp_email, ui.position,
+    ui.direct_superior_id, ui.department, ui.company_id, ui.date_joined,
+    ui.site, ui.role, ui.is_hr, ui.is_confirmed,
+    COALESCE(ui.password, '$2y$10$pk0AN2WOESsjOMwuQ9L8D.57z3Vg9CRB.ii80VHK9.HQ9eIpNBefa'), -- default hash
+    COALESCE(ui.is_active, 1)
+FROM users_import ui;

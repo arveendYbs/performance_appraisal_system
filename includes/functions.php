@@ -58,6 +58,125 @@ function hasRole($required_role) {
     return $user_role === $required_role;
 }
 
+
+/**
+ * Check if user has subordinates (team members)
+ */
+function hasSubordinates($user_id = null) {
+    if (!isLoggedIn()) return false;
+    
+    $user_id = $user_id ?? $_SESSION['user_id'];
+    
+    try {
+        $database = new Database();
+        $db = $database->getConnection();
+        
+        $query = "SELECT COUNT(*) as count FROM users 
+                  WHERE direct_superior = ? AND is_active = 1";
+        $stmt = $db->prepare($query);
+        $stmt->execute([$user_id]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $result['count'] > 0;
+    } catch (Exception $e) {
+        error_log("hasSubordinates error: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Check if user can access team/manager features
+ * Returns true if user is:
+ * - Admin (full access)
+ * - Manager role
+ * - OR has subordinates reporting to them
+ */
+function canAccessTeamFeatures($user_id = null) {
+    if (!isLoggedIn()) return false;
+    
+    $user_id = $user_id ?? $_SESSION['user_id'];
+    $user_role = $_SESSION['user_role'] ?? '';
+    
+    // Admin has full access
+    if ($user_role === 'admin') return true;
+    
+    // Manager role has access
+    if ($user_role === 'manager') return true;
+ // Department managers (Operation Manager, Manager in Production, etc.)
+    if (isDepartmentManager($user_id)) return true;
+    // Anyone with subordinates has access
+    return hasSubordinates($user_id);
+}
+
+
+/**
+ * Check if user is a department manager/operation manager
+ * Returns true if position contains "Manager" or "Operation Manager" 
+ * in specific departments
+ */
+function isDepartmentManager($user_id = null) {
+    if (!isLoggedIn()) return false;
+    
+    $user_id = $user_id ?? $_SESSION['user_id'];
+    
+    try {
+        $database = new Database();
+        $db = $database->getConnection();
+        
+        $query = "SELECT position, department FROM users WHERE id = ? AND is_active = 1";
+        $stmt = $db->prepare($query);
+        $stmt->execute([$user_id]);
+        $user_info = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$user_info) return false;
+        
+        $position = strtolower($user_info['position'] ?? '');
+        $department = strtolower($user_info['department'] ?? '');
+        
+        // Check if user is in Production department
+        if ($department === 'production') {
+            // Check if position contains "manager" or "operation manager"
+            if (
+                strpos($position, 'operation manager') !== false || 
+                strpos($position, 'manager') !== false
+            ) {
+                return true;
+            }
+        }
+        
+        // Add more departments here if needed
+        // Example: if ($department === 'sales') { ... }
+        
+        return false;
+    } catch (Exception $e) {
+        error_log("isDepartmentManager error: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Get user's department
+ */
+function getUserDepartment($user_id = null) {
+    if (!isLoggedIn()) return null;
+    
+    $user_id = $user_id ?? $_SESSION['user_id'];
+    
+    try {
+        $database = new Database();
+        $db = $database->getConnection();
+        
+        $query = "SELECT department FROM users WHERE id = ? AND is_active = 1";
+        $stmt = $db->prepare($query);
+        $stmt->execute([$user_id]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $result['department'] ?? null;
+    } catch (Exception $e) {
+        error_log("getUserDepartment error: " . $e->getMessage());
+        return null;
+    }
+}
 /**
  * Redirect with message
  */

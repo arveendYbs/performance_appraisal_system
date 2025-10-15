@@ -2,9 +2,11 @@
 // manager/team.php
 require_once __DIR__ . '/../config/config.php';
 
-if (!hasRole('manager') && !hasRole('admin')) {
-    redirect(BASE_URL . '/index.php', 'Access denied.', 'error');
+// Check if user can access team features (manager role OR has subordinates)
+if (!canAccessTeamFeatures()) {
+    redirect(BASE_URL . '/index.php', 'Access denied. You need to be a manager or have team members to access this page.', 'error');
 }
+
 
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
@@ -31,11 +33,25 @@ try {
 
 <div class="row">
     <div class="col-12">
-        <h1 class="h3 mb-4">
-            <i class="bi bi-people me-2"></i>My Team
-        </h1>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3 mb-0">
+                <i class="bi bi-people me-2"></i>My Team
+            </h1>
+            <div>
+                <span class="badge bg-primary fs-6">
+                    <?php echo count($team_members); ?> Team Member<?php echo count($team_members) != 1 ? 's' : ''; ?>
+                </span>
+            </div>
+        </div>
     </div>
 </div>
+<?php if (!hasRole('manager') && hasSubordinates()): ?>
+<div class="alert alert-info alert-dismissible fade show" role="alert">
+    <i class="bi bi-info-circle me-2"></i>
+    <strong>Team Lead Access:</strong> You have access to these features because you have team members reporting to you.
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+<?php endif; ?>
 
 <div class="row">
     <div class="col-12">

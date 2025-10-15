@@ -2,9 +2,15 @@
 // manager/review/review.php
 require_once __DIR__ . '/../../config/config.php';
 
-if (!hasRole('manager') && !hasRole('admin')) {
+/* if (!hasRole('manager') && !hasRole('admin')) {
+    redirect(BASE_URL . '/index.php', 'Access denied.', 'error');
+} */
+
+// Check if user can access team features (includes dept managers)
+if (!canAccessTeamFeatures()) {
     redirect(BASE_URL . '/index.php', 'Access denied.', 'error');
 }
+
 
 $appraisal_id = $_GET['id'] ?? 0;
 if (!$appraisal_id) {

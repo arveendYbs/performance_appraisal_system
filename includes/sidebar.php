@@ -5,6 +5,10 @@ ob_start();
 $current_page = basename($_SERVER['PHP_SELF']);
 $current_path = $_SERVER['REQUEST_URI'];
 
+
+// Check user roles
+$is_admin = hasRole('admin');
+$is_manager = hasRole('manager');
 // Check if user is HR
 $is_hr = false;
 if (isset($_SESSION['user_id'])) {
@@ -15,6 +19,11 @@ if (isset($_SESSION['user_id'])) {
     $current_user->readOne();
     $is_hr = $current_user->isHR();
 }
+
+
+// Check if user can access team features
+$can_manage_team = canAccessTeamFeatures();
+$is_team_lead = !$is_manager && $can_manage_team; // Team lead = has subordinates but not manager role
 ?>
 
 <div class="sidebar" id="sidebar">
@@ -77,7 +86,7 @@ if (isset($_SESSION['user_id'])) {
         <?php endif; ?>
 
 
-        <?php if (hasRole('manager') || hasRole('admin')): ?>
+        <?php if (hasRole('manage') || hasRole('admin')): ?>
         <!-- Management Section -->
         <div class="nav-header">Management</div>
         
@@ -106,6 +115,7 @@ if (isset($_SESSION['user_id'])) {
 
             <!-- Add this HR section in your sidebar -->
             <?php if ($is_hr): ?>
+            <div class="nav-header">HR</div>
             <li class="nav-item">
                 <a class="nav-link <?php echo strpos($_SERVER['REQUEST_URI'], '/hr/') !== false ? 'active' : ''; ?>" 
                 href="<?php echo BASE_URL; ?>/hr/index.php">
@@ -141,8 +151,38 @@ if (isset($_SESSION['user_id'])) {
             </li>
             <?php endif; ?>
 
+        <!-- Manager/Team Lead Section - Shows for managers OR anyone with subordinates -->
+        <?php if ($can_manage_team): ?>
+        <div class="nav-header">
+            <?php if ($is_team_lead): ?>
+                Team Lead
+            <?php else: ?>
+                Manager
+            <?php endif; ?>
+        </div>
         
        
+        <div class="nav-item">
+            <a href="<?php echo BASE_URL; ?>/manager/review/pending.php" 
+               class="nav-link <?php echo (strpos($current_path, '/manager/review/') !== false) ? 'active' : ''; ?>">
+                <i class="bi bi-clipboard-check"></i> Review Appraisals
+            </a>
+        </div>
+        
+        <div class="nav-item">
+            <a href="<?php echo BASE_URL; ?>/manager/team.php" 
+               class="nav-link <?php echo (strpos($current_path, '/manager/team.php') !== false) ? 'active' : ''; ?>">
+                <i class="bi bi-people"></i> My Team
+            </a>
+        </div>
+        
+        <div class="nav-item">
+            <a href="<?php echo BASE_URL; ?>/manager/reports.php" 
+               class="nav-link <?php echo (strpos($current_path, '/manager/reports.php') !== false) ? 'active' : ''; ?>">
+                <i class="bi bi-graph-up"></i> Reports
+            </a>
+        </div>
+        <?php endif; ?>
         <!-- Employee Section -->
         <div class="nav-header">Employee</div>
         

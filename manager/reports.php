@@ -3,9 +3,14 @@
 // manager/reports.php
 require_once __DIR__ . '/../config/config.php';
 
-if (!hasRole('manager') && !hasRole('admin')) {
+/* if (!hasRole('manager') && !hasRole('admin')) {
+    redirect(BASE_URL . '/index.php', 'Access denied.', 'error');
+} */
+
+    if (!canAccessTeamFeatures()) {
     redirect(BASE_URL . '/index.php', 'Access denied.', 'error');
 }
+
 
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
