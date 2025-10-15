@@ -22,8 +22,13 @@ if (isset($_SESSION['user_id'])) {
 
 
 // Check if user can access team features
+/* $can_manage_team = canAccessTeamFeatures();
+$is_team_lead = !$is_manager && $can_manage_team; */ // Team lead = has subordinates but not manager role
+
+// Check if user can access team features
 $can_manage_team = canAccessTeamFeatures();
-$is_team_lead = !$is_manager && $can_manage_team; // Team lead = has subordinates but not manager role
+$is_dept_manager = isDepartmentManager();
+$is_team_lead = !hasRole('manager') && !$is_dept_manager && $can_manage_team;
 ?>
 
 <div class="sidebar" id="sidebar">
@@ -152,13 +157,17 @@ $is_team_lead = !$is_manager && $can_manage_team; // Team lead = has subordinate
             <?php endif; ?>
 
         <!-- Manager/Team Lead Section - Shows for managers OR anyone with subordinates -->
-        <?php if ($can_manage_team): ?>
+         <?php if ($can_manage_team): ?>
         <div class="nav-header">
-            <?php if ($is_team_lead): ?>
-                Team Lead
-            <?php else: ?>
-                Manager
-            <?php endif; ?>
+            <?php 
+            if ($is_dept_manager) {
+                echo 'Department Manager';
+            } elseif ($is_team_lead) {
+                echo 'Team Lead';
+            } else {
+                echo 'Manager';
+            }
+            ?>
         </div>
         
        
@@ -172,7 +181,14 @@ $is_team_lead = !$is_manager && $can_manage_team; // Team lead = has subordinate
         <div class="nav-item">
             <a href="<?php echo BASE_URL; ?>/manager/team.php" 
                class="nav-link <?php echo (strpos($current_path, '/manager/team.php') !== false) ? 'active' : ''; ?>">
-                <i class="bi bi-people"></i> My Team
+                <i class="bi bi-people"></i> 
+                <?php 
+                if ($is_dept_manager) {
+                    echo 'Department Team';
+                } else {
+                    echo 'My Team';
+                }
+                ?>
             </a>
         </div>
         

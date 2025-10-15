@@ -2,15 +2,15 @@
 // manager/employee_history.php
 require_once __DIR__ . '/../config/config.php';
 
-/* if (!hasRole('manager') && !hasRole('admin')) {
-    redirect(BASE_URL . '/index.php', 'Access denied.', 'error');
-} */
 if (!canAccessTeamFeatures()) {
     redirect(BASE_URL . '/index.php', 'Access denied. You need to be a manager or have team members to access this page.', 'error');
+    exit;
 }
+
 $user_id = $_GET['user_id'] ?? 0;
 if (!$user_id) {
     redirect('team.php', 'Employee ID is required.', 'error');
+    exit;
 }
 
 require_once __DIR__ . '/../includes/header.php';
@@ -22,46 +22,50 @@ $records_per_page = 10;
 try {
     $database = new Database();
     $db = $database->getConnection();
-    
-    // Verify employee is in manager's team
-    $team_query = "SELECT name, position, emp_number, department FROM users 
-                   WHERE id = ? AND direct_superior = ? AND is_active = 1";
-    $team_stmt = $db->prepare($team_query);
-    $team_stmt->execute([$user_id, $_SESSION['user_id']]);
-    $employee = $team_stmt->fetch(PDO::FETCH_ASSOC);
-    
+
+    // ✅ Get employee details (including direct_superior)
+    $emp_query = "SELECT id, name, position, emp_number, department, direct_superior 
+                  FROM users 
+                  WHERE id = ? AND is_active = 1";
+    $emp_stmt = $db->prepare($emp_query);
+    $emp_stmt->execute([$user_id]);
+    $employee = $emp_stmt->fetch(PDO::FETCH_ASSOC);
+
     if (!$employee) {
-        redirect('team.php', 'Employee not found in your team.', 'error');
+        redirect('team.php', 'Employee not found.', 'error');
+        exit;
     }
-    
-    // Get employee's appraisal history with pagination
+
+    // ✅ Check if logged-in user is this employee's direct superior
+    $is_direct_report = ($employee['direct_superior'] == $_SESSION['user_id']);
+
+    // ✅ Get employee's appraisal history with pagination
     $from_record_num = ($records_per_page * $page) - $records_per_page;
-    
+
     $query = "SELECT a.*, f.title as form_title
               FROM appraisals a
               LEFT JOIN forms f ON a.form_id = f.id
               WHERE a.user_id = ?
               ORDER BY a.created_at DESC
               LIMIT ?, ?";
-    
     $stmt = $db->prepare($query);
     $stmt->bindParam(1, $user_id, PDO::PARAM_INT);
     $stmt->bindParam(2, $from_record_num, PDO::PARAM_INT);
     $stmt->bindParam(3, $records_per_page, PDO::PARAM_INT);
     $stmt->execute();
-    
+
     $appraisals = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Get total count
+
+    // ✅ Get total count
     $count_query = "SELECT COUNT(*) as total FROM appraisals WHERE user_id = ?";
     $count_stmt = $db->prepare($count_query);
     $count_stmt->execute([$user_id]);
     $total_records = $count_stmt->fetch()['total'];
     $total_pages = ceil($total_records / $records_per_page);
-    
 } catch (Exception $e) {
     error_log("Employee history error: " . $e->getMessage());
     redirect('team.php', 'An error occurred.', 'error');
+    exit;
 }
 ?>
 
@@ -73,9 +77,9 @@ try {
                     <i class="bi bi-clock-history me-2"></i>Appraisal History
                 </h1>
                 <p class="text-muted mb-0">
-                    <strong><?php echo htmlspecialchars($employee['name']); ?></strong> 
-                    (<?php echo htmlspecialchars($employee['emp_number']); ?>)
-                    - <?php echo htmlspecialchars($employee['position']); ?>
+                    <strong><?php echo htmlspecialchars($employee['name'] ?? 'Unknown'); ?></strong> 
+                    (<?php echo htmlspecialchars($employee['emp_number'] ?? '-'); ?>)
+                    - <?php echo htmlspecialchars($employee['position'] ?? '-'); ?>
                 </p>
             </div>
             <a href="team.php" class="btn btn-outline-secondary">
@@ -152,18 +156,18 @@ try {
                                     </small>
                                 </td>
                                 <td>
-                                    <?php if ($appraisal['status'] === 'submitted' || $appraisal['status'] === 'in_review'): ?>
-                                    <a href="review/review.php?id=<?php echo $appraisal['id']; ?>" 
-                                       class="btn btn-sm btn-primary">
-                                        <i class="bi bi-pencil"></i> Review
-                                    </a>
-                                    <?php elseif ($appraisal['status'] === 'completed'): ?>
-                                    <a href="review/view.php?id=<?php echo $appraisal['id']; ?>" 
-                                       class="btn btn-sm btn-outline-primary">
-                                        <i class="bi bi-eye"></i> View
-                                    </a>
+                                    <?php if ($is_direct_report && ($appraisal['status'] === 'submitted' || $appraisal['status'] === 'in_review')): ?>
+                                        <a href="review/review.php?id=<?php echo $appraisal['id']; ?>" 
+                                           class="btn btn-sm btn-primary">
+                                            <i class="bi bi-pencil"></i> Review
+                                        </a>
+                                    <?php elseif ($appraisal['status'] === 'completed' || $appraisal['status'] === 'submitted' || $appraisal['status'] === 'in_review' ): ?>
+                                        <a href="review/view.php?id=<?php echo $appraisal['id']; ?>" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
                                     <?php else: ?>
-                                    <small class="text-muted">Draft</small>
+                                        <small class="text-muted">Draft</small>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -171,7 +175,7 @@ try {
                         </tbody>
                     </table>
                 </div>
-                
+
                 <!-- Pagination -->
                 <?php if ($total_pages > 1): ?>
                 <nav>

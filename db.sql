@@ -346,6 +346,14 @@ RENAME TABLE users TO users_backup;
 RENAME TABLE users_test1 TO users;
 
 
+-- change reference in appraisals table
+ALTER TABLE appraisals
+DROP FOREIGN KEY appraisals_ibfk_1;
+
+ALTER TABLE appraisals
+ADD CONSTRAINT appraisals_ibfk_1
+FOREIGN KEY (user_id) REFERENCES users(id)
+ON DELETE CASCADE;
 
 
 --insert into users from users_import

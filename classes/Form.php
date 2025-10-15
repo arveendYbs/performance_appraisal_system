@@ -173,6 +173,8 @@ class Form {
      * Get form by user role
      */
     public function getFormByRole($role) {
+        $role = strtolower(trim($role));
+
         $form_type_map = [
             'manager' => 'management',
             'employee' => 'general',

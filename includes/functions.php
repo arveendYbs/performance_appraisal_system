@@ -8,9 +8,18 @@
 /**
  * Sanitize input data
  */
-function sanitize($data) {
-    return htmlspecialchars(strip_tags(trim($data)));
+function sanitize($value) {
+    if (is_null($value)) return null;
+
+    // Trim and remove invisible characters, but don't HTML-encode
+    $value = trim($value);
+
+    // Optionally, strip tags if you don't allow HTML input
+    $value = strip_tags($value);
+
+    return $value;
 }
+
 
 /**
  * Validate email

@@ -245,7 +245,7 @@ require_once __DIR__ . '/../../includes/header.php';
                                 <div class="mb-3">
                                     <label for="department" class="form-label">Department <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="department" name="department" required
-                                           value="<?php echo htmlspecialchars($user->department); ?>">
+                                           value="<?php echo htmlspecialchars($user->department, ENT_QUOTES, 'UTF-8'); ?>">
                                 </div>
                             </div>
                             <div class="col-md-6">

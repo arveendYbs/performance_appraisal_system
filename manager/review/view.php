@@ -2,10 +2,9 @@
 // manager/review/view.php
 require_once __DIR__ . '/../../config/config.php';
 
-if (!hasRole('manager') && !hasRole('admin')) {
-    redirect(BASE_URL . '/index.php', 'Access denied.', 'error');
+if (!canAccessTeamFeatures()) {
+    redirect(BASE_URL . '/index.php', 'Access denied. You need to be a manager or have team members to access this page.', 'error');
 }
-
 $appraisal_id = $_GET['id'] ?? 0;
 if (!$appraisal_id) {
     redirect('pending.php', 'Appraisal ID is required.', 'error');
