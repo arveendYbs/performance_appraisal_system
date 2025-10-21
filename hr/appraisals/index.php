@@ -39,7 +39,7 @@ try {
               JOIN users u ON a.user_id = u.id
               JOIN companies c ON u.company_id = c.id
               JOIN hr_companies hc ON c.id = hc.company_id
-              LEFT JOIN users m ON a.appraiser_id = m.id
+              LEFT JOIN users m ON u.direct_superior = m.id
               LEFT JOIN forms f ON a.form_id = f.id
               WHERE hc.user_id = ?";
     

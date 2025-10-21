@@ -16,7 +16,7 @@ define('SMTP_FROM_NAME', 'Performance Appraisal System');
 define('SMTP_HOST', 'smtp.office365.com');
 define('SMTP_PORT', 587);
 define('SMTP_USERNAME', 'arveend@ybsinternational.com');
-define('SMTP_PASSWORD', 'Ybs@2025!');
+define('SMTP_PASSWORD', 'Ybs@8888!');
 define('SMTP_ENCRYPTION', 'tls');
 
 function sendEmail($to, $subject, $message, $recipient_name = '', $options = []) {
@@ -329,7 +329,7 @@ function sendReviewCompletionEmails($appraisal_id) {
                          COALESCE(NULLIF(m.emp_email, ''), m.email) as manager_email
                   FROM appraisals a
                   JOIN users u ON a.user_id = u.id
-                  LEFT JOIN users m ON a.appraiser_id = m.id
+                  LEFT JOIN users m ON u.direct_superior = m.id
                   WHERE a.id = ?";
         
         error_log("=== sendReviewCompletionEmails CALLED ===");

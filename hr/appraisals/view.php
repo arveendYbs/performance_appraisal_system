@@ -43,7 +43,7 @@ try {
               JOIN users u ON a.user_id = u.id
               JOIN companies c ON u.company_id = c.id
               LEFT JOIN forms f ON a.form_id = f.id
-              LEFT JOIN users appraiser ON a.appraiser_id = appraiser.id
+              LEFT JOIN users appraiser ON u.direct_superior = appraiser.id
               WHERE a.id = ?";
     
     $stmt = $db->prepare($query);
