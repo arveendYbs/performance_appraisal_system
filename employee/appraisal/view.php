@@ -29,7 +29,7 @@ try {
                      f.title as form_title
               FROM appraisals a
               JOIN users emp ON a.user_id = emp.id
-              LEFT JOIN users mgr ON a.appraiser_id = mgr.id
+              LEFT JOIN users mgr ON emp.direct_superior = mgr.id
               LEFT JOIN forms f ON a.form_id = f.id
               WHERE a.id = ? AND a.user_id = ?";
      

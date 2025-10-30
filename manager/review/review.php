@@ -620,6 +620,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             <div class="mb-3 p-2 bg-info bg-opacity-10 rounded border-start border-info border-3">
                                 <strong>Employee Score: </strong>
                                 <span class="badge bg-info fs-6"><?php echo $response['employee_rating']; ?></span>
+                                <input type="hidden" class="employee-rating" value="<?php echo intval($response['employee_rating']); ?>">
+
                                 <?php 
                                 $max_rating = $question['response_type'] === 'rating_5' ? 5 : 10;
                                 $percentage = round(($response['employee_rating'] / $max_rating) * 100);
@@ -761,16 +763,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             </div>
                             <div class="mb-2">
                                 <strong>Your Average Score:</strong> 
-                                <span id="average-score" class="badge bg-primary fs-6">0.0</span>
+                                <span id="average-score" class="badge bg-primary fs-6">0%</span>
                             </div>
                         </div>
                         <div class="col-md-6">
+                           
                             <div class="mb-2">
-                                <strong>Employee's Average:</strong> 
-                                <span id="employee-average" class="badge bg-info fs-6">0.0</span>
-                            </div>
-                            <div class="mb-2">
-                                <strong>Performance Percentage:</strong> 
+                                <strong>Employee Score:</strong> 
                                 <span id="performance-percentage" class="badge bg-success fs-6">0%</span>
                             </div>
                         </div>
@@ -839,6 +838,8 @@ function updateScoreCalculator() {
     let totalQuestions = 0;
     let answeredQuestions = 0;
     let totalScore = 0;
+    let employeeTotal = 0;
+    let employeeAnswered = 0;
     
    /*  // Count rating_5 questions
     document.querySelectorAll('input[name^="rating_"][type="range"][max="5"]').forEach(function(input) {
@@ -861,15 +862,26 @@ function updateScoreCalculator() {
            totalScore += value; // Keep as is for 10-point average
         }
     });
-    
+        // Employee scores (from hidden inputs)
+    document.querySelectorAll('.employee-rating').forEach(function(input) {
+        const value = parseInt(input.value) || 0;
+        if (value > 0) {
+            employeeAnswered++;
+            employeeTotal += value;
+        }
+    });
     // Calculate average
-    const average = answeredQuestions > 0 ? (totalScore / answeredQuestions * 10).toFixed(1) : 0;
-    
+    const average = answeredQuestions > 0 ? (totalScore / answeredQuestions ).toFixed(1) : 0;
+    const employeeAverage = employeeAnswered > 0 ? (employeeTotal / employeeAnswered).toFixed(1) : 0;
+
     // Update display
     document.getElementById('answered-count').textContent = answeredQuestions;
     document.getElementById('total-questions').textContent = totalQuestions;
-    document.getElementById('average-score').textContent = average;
-    
+    document.getElementById('average-score').textContent = `${(average * 10).toFixed(0)}%`;
+    document.getElementById('performance-percentage').textContent = `${(employeeAverage * 10).toFixed(0)}%`;
+
+
+
     // Update badge color based on average
     const avgBadge = document.getElementById('average-score');
     if (average >= 4.0) {

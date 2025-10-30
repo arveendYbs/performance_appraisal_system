@@ -355,17 +355,3 @@ ADD CONSTRAINT appraisals_ibfk_1
 FOREIGN KEY (user_id) REFERENCES users(id)
 ON DELETE CASCADE;
 
-
---insert into users from users_import
-INSERT INTO users_test (
-    name, emp_number, email, emp_email, position,
-    direct_superior, department, company_id, date_joined,
-    site, role, is_hr, is_confirmed, password, is_active
-)
-SELECT
-    ui.name, ui.emp_number, ui.email, ui.emp_email, ui.position,
-    ui.direct_superior_id, ui.department, ui.company_id, ui.date_joined,
-    ui.site, ui.role, ui.is_hr, ui.is_confirmed,
-    COALESCE(ui.password, '$2y$10$pk0AN2WOESsjOMwuQ9L8D.57z3Vg9CRB.ii80VHK9.HQ9eIpNBefa'), -- default hash
-    COALESCE(ui.is_active, 1)
-FROM users_import ui;
