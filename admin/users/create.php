@@ -4,10 +4,13 @@
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/sidebar.php';
 
-if (!hasRole('admin')) {
+/* if (!hasRole('admin')) {
+    redirect(BASE_URL . '/index.php', 'Access denied.', 'error');
+} */
+
+if (!canManageUsers()) {
     redirect(BASE_URL . '/index.php', 'Access denied.', 'error');
 }
-
 $error_message = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {

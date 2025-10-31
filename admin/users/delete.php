@@ -2,7 +2,11 @@
 // admin/users/delete.php
 require_once __DIR__ . '/../../config/config.php';
 
-if (!hasRole('admin')) {
+/* if (!hasRole('admin')) {
+    redirect(BASE_URL . '/index.php', 'Access denied.', 'error');
+} */
+
+if (!canManageUsers()) {
     redirect(BASE_URL . '/index.php', 'Access denied.', 'error');
 }
 

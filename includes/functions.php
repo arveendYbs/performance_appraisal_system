@@ -67,6 +67,32 @@ function hasRole($required_role) {
     return $user_role === $required_role;
 }
 
+/**
+ * Check if user can manage other users
+ * Returns true if user is:
+ * - Admin role
+ * - HR role
+ */
+function canManageUsers() {
+    if (!isLoggedIn()) return false;
+    
+    //admin can always manage users 
+    if (hasRole('admin')) return true;
+
+    try {
+        $database = new Database();
+        $db = $database->getConnection();
+        $user = new User($db);
+        $user->id = $_SESSION['user_id'];
+        $user->readOne();
+
+        return $user->isHR();
+    } catch (Exception $e) {
+        error_log("canManageUsers error: " . $e->getMessage());
+        return false;
+    }
+
+}
 
 /**
  * Check if user has subordinates (team members)

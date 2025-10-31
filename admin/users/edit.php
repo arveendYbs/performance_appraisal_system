@@ -7,10 +7,13 @@ if (!isLoggedIn()) {
     redirect('/auth/login.php', 'Please login first.', 'warning');
 }
 
-if (!hasRole('admin')) {
+/* if (!hasRole('admin')) {
+    redirect(BASE_URL . '/index.php', 'Access denied.', 'error');
+} */
+
+if (!canManageUsers()) {
     redirect(BASE_URL . '/index.php', 'Access denied.', 'error');
 }
-
 // Get user ID from URL
 $user_id = $_GET['id'] ?? 0;
 if (!$user_id) {

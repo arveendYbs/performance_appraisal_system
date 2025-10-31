@@ -50,7 +50,7 @@ $is_team_lead = !hasRole('manager') && !$is_dept_manager && $can_manage_team;
             </a>
         </div>
 
-        <?php if (hasRole('admin')): ?>
+        <?php if (hasRole('admin') || $is_hr): ?>
         <!-- Administration Section -->
         <div class="nav-header">Administration</div>
         
@@ -81,13 +81,16 @@ $is_team_lead = !hasRole('manager') && !$is_dept_manager && $can_manage_team;
                 <i class="bi bi-people"></i> Manage Users
             </a>
         </div>
-        
+ 
+        <?php if (hasRole('admin') ): ?>
+
         <div class="nav-item">
             <a href="<?php echo BASE_URL; ?>/admin/audit/" 
                class="nav-link <?php echo (strpos($current_path, '/admin/audit/') !== false) ? 'active' : ''; ?>">
                 <i class="bi bi-clock-history"></i> Audit Logs
             </a>
         </div>
+        <?php endif; ?>
         <?php endif; ?>
 
 
