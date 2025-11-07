@@ -9,8 +9,8 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 // Email configuration constants
-define('SMTP_FROM', 'arveend@ybsinternational.com');
-define('SMTP_FROM_NAME', 'Performance Appraisal System');
+define('SMTP_FROM', 'noreply@ybsinternational.com');
+define('SMTP_FROM_NAME', 'E - Appraisal System');
 
 // SMTP configurations
 define('SMTP_HOST', 'smtp.office365.com');
@@ -26,7 +26,7 @@ function sendEmail($to, $subject, $message, $recipient_name = '', $options = [])
         // Server settings
         $mail->isSMTP();
         $mail->Host       = SMTP_HOST;
-        $mail->SMTPAuth   = true;
+        $mail->SMTPAuth   = false;
         $mail->Username   = SMTP_USERNAME;
         $mail->Password   = SMTP_PASSWORD;
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;

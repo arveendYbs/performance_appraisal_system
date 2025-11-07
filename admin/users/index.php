@@ -39,14 +39,14 @@ try {
     
     $params = [];
        // Add after line 28 where the query is built
-if (!hasRole('admin') && $is_hr) {
-    // Limit to HR's assigned companies
-    $query .= " AND u.company_id IN (
-        SELECT company_id FROM hr_companies WHERE user_id = ?
-    )";
-    // Add user_id as the first parameter
-    array_unshift($params, $_SESSION['user_id']);
-}
+    if (!hasRole('admin') && $is_hr) {
+        // Limit to HR's assigned companies
+        $query .= " AND u.company_id IN (
+            SELECT company_id FROM hr_companies WHERE user_id = ?
+        )";
+        // Add user_id as the first parameter
+        array_unshift($params, $_SESSION['user_id']);
+    }
     // Add search filter
     if (!empty($search)) {
         $query .= " AND (u.name LIKE ? OR u.emp_number LIKE ? OR u.email LIKE ? OR u.position LIKE ?)";
