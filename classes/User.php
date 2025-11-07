@@ -593,6 +593,32 @@ class User {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Get all potential supervisors excluding a specific user
+     */
+    public function getAllPotentialSupervisors($exclude_id = null) {
+        $query = "SELECT u.id, u.name, u.position, u.department, u.emp_number,
+                         c.name as company_name
+                  FROM " . $this->table_name . " u
+                  LEFT JOIN companies c ON u.company_id = c.id
+                  WHERE u.is_active = 1";
+        
+        if ($exclude_id) {
+            $query .= " AND id != :exclude_id";
+        }
+        
+        $query .= " ORDER BY u.name ASC";
+        
+        $stmt = $this->conn->prepare($query);
+        
+        if ($exclude_id) {
+            $stmt->bindParam(':exclude_id', $exclude_id);
+        }
+        
+        $stmt->execute();
+        
+        return $stmt;
+    }
   
     
    
