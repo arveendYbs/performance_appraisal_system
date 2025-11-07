@@ -1,11 +1,16 @@
 <?php
 // admin/users/edit.php
 require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../includes/sidebar.php';
+require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../../classes/User.php';
 
 // Check authentication and authorization
 if (!isLoggedIn()) {
     redirect('/auth/login.php', 'Please login first.', 'warning');
 }
+
+
 
 /* if (!hasRole('admin')) {
     redirect(BASE_URL . '/index.php', 'Access denied.', 'error');
@@ -146,7 +151,6 @@ try {
 }
 
 // Include header
-require_once __DIR__ . '/../../includes/header.php';
 ?>
 
 <div class="container-fluid px-4">
@@ -229,18 +233,33 @@ require_once __DIR__ . '/../../includes/header.php';
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="direct_superior" class="form-label">Direct Superior</label>
-                                    <select class="form-select" id="direct_superior" name="direct_superior">
+                                    <select class="form-select select-supervisor" id="direct_superior" name="direct_superior">
                                         <option value="">Select supervisor...</option>
-                                        <?php foreach ($supervisors as $supervisor): ?>
+                                        <?php 
+                                        $supervisors = $user->getAllPotentialSupervisors($direct_superior);
+                                        
+                                        while ($supervisor = $supervisors->fetch(PDO::FETCH_ASSOC)): ?>
                                         <option value="<?php echo $supervisor['id']; ?>" 
+                                                data-position="<?php echo htmlspecialchars($supervisor['position']); ?>"
+                                                data-department="<?php echo htmlspecialchars($supervisor['department']); ?>"
+                                                data-company="<?php echo htmlspecialchars($supervisor['company_name'] ?? ''); ?>"
                                                 <?php echo ($user->direct_superior == $supervisor['id']) ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($supervisor['name'] . ' - ' . $supervisor['position']); ?>
+                                            <?php 
+                                            echo htmlspecialchars($supervisor['name']) . ' - ' . 
+                                                htmlspecialchars($supervisor['position']) . ' (' . 
+                                                htmlspecialchars($supervisor['department']) . 
+                                                ($supervisor['company_name'] ? ', ' . htmlspecialchars($supervisor['company_name']) : '') . ')';
+                                            ?>
                                         </option>
-                                        <?php endforeach; ?>
+                                        <?php endwhile; ?>
                                     </select>
+                                    <div class="form-text">
+                                        <i class="bi bi-search me-1"></i>Type to search by name, position, or department
+                                    </div>
                                 </div>
                             </div>
                         </div>
+
 
                         <!-- Department and Site -->
                         <div class="row">
@@ -310,8 +329,8 @@ require_once __DIR__ . '/../../includes/header.php';
                             }
                             ?>
                         </div>
-<!--                                 <?php var_dump($user->is_confirmed); ?>
- -->
+                                            <!--                                 <?php var_dump($user->is_confirmed); ?>
+                                -->
                         <!-- Employment Confirmation Status -->
                         <div class="mb-3">
                             <div class="form-check">
@@ -398,6 +417,40 @@ require_once __DIR__ . '/../../includes/header.php';
 </div>
 
 <script>
+    // Initialize Select2 for supervisor dropdown
+function matchCustom(params, data) {
+    if ($.trim(params.term) === '') return data;
+    if (typeof data.text === 'undefined' || data.text === 'Select supervisor...') return null;
+
+    const searchTerm = params.term.toLowerCase();
+    const text = data.text.toLowerCase();
+    const position = $(data.element).data('position');
+    const department = $(data.element).data('department');
+    const company = $(data.element).data('company');
+
+    if (
+        text.indexOf(searchTerm) > -1 ||
+        (position && position.toLowerCase().indexOf(searchTerm) > -1) ||
+        (department && department.toLowerCase().indexOf(searchTerm) > -1) ||
+        (company && company.toLowerCase().indexOf(searchTerm) > -1)
+    ) {
+        return data;
+    }
+    return null;
+}
+
+$(document).ready(function() {
+    console.log("jQuery version:", $.fn.jquery);
+    console.log("Select2 available:", typeof $.fn.select2);
+    $('.select-supervisor').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Select or search for supervisor...',
+        allowClear: true,
+        matcher: matchCustom
+    });
+});
+
 document.addEventListener('DOMContentLoaded', function() {
     // Password confirmation validation
     const newPassword = document.getElementById('new_password');
