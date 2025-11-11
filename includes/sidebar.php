@@ -6,6 +6,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 $current_path = $_SERVER['REQUEST_URI'];
 
 
+
 // Check user roles
 $is_admin = hasRole('admin');
 $is_manager = hasRole('manager');
@@ -30,7 +31,26 @@ $can_manage_team = canAccessTeamFeatures();
 $is_dept_manager = isDepartmentManager();
 $is_team_lead = !hasRole('manager') && !$is_dept_manager && $can_manage_team;
 ?>
+      <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+
+
+  <!-- jQuery -->
+    <link href="/assets/css/custom.css" rel="stylesheet">
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Select2 JS -->
+
+<!-- Select2 CSS + JS -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/js/select2.full.min.js"></script>
+
+    <link href="/assets/css/custom.css" rel="stylesheet">
 <div class="sidebar" id="sidebar">
     <div class="logo">
     <img src="<?php echo BASE_URL; ?>/assets/images/logo.png" 

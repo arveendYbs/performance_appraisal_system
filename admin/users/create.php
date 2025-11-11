@@ -37,6 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $is_hr = isset($_POST['is_hr']) ? 1 : 0;
         $is_confirmed = isset($_POST['is_confirmed']) ? 1 : 0;
         $hr_companies = $_POST['hr_companies'] ?? [];
+        $is_top_management = isset($_POST['is_top_management']) ? 1 : 0;
+        $top_mgmt_companies = $_POST['top_mgmt_companies'] ?? [];
 
         // Validation
         if (empty($name) || empty($emp_number) || empty($email) || empty($company_id) || empty($position) || 
@@ -72,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $user->is_hr = $is_hr;            // ADD THIS
                 $user->is_confirmed = $is_confirmed; // ADD THIS
                 $user->password = $password;
+                $user->is_top_management = $is_top_management; // ADD THIS
 
                 if ($user->create()) {
                      $user_id = $db->lastInsertId();
@@ -81,6 +84,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $user->id = $user_id;
                         foreach ($hr_companies as $comp_id) {
                             $user->assignToCompany($comp_id);
+                        }
+                    }
+
+                    if ($is_top_management && !empty($top_mgmt_companies)) {
+                        $user->id = $user_id;
+                        foreach ($top_mgmt_companies as $comp_id) {
+                            $user->assignTopManagementToCompany($comp_id);
                         }
                     }
                     logActivity($_SESSION['user_id'], 'CREATE', 'users', $user->id, null,
@@ -306,6 +316,38 @@ try {
                         ?>
                     </div>
 
+                    <!-- top management status -->
+
+                    <div class ="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_top_management" name="is_top_management" value="1">
+                            <label class="form-check-label" for="is_top_management">
+                                <strong>Top Management</strong> - Has access to all appraisal data across the organization.
+                            </label>
+                        </div>
+                        <small class="text-muted">
+                            Top Management users have elevated privileges and can oversee company-wide performance appraisals.
+                        </small>
+                    </div>
+
+                    <!-- top managemnet companies -->
+                    <div class="mb-3" id="top_management_companies_section" style="display: none;">
+                        <label class="form-label">Top Management Responsible for Companies</label>
+                        <?php
+                        $companies_stmt3 = $company_model->getAll();
+                        while ($company = $companies_stmt3->fetch(PDO::FETCH_ASSOC)) {
+                            echo "
+                            <div class='form-check'>
+                                <input class='form-check-input top-management-company-checkbox' type='checkbox' name='top_management_companies[]' 
+                                    value='{$company['id']}' id='top_management_company_{$company['id']}'>  
+                                <label class='form-check-label' for='top_management_company_{$company['id']}'>
+                                    {$company['name']}
+                                </label>
+                            </div>";
+                        }
+                        ?>
+                    </div>
+
                     <!-- Employment Confirmation Status -->
                      <div class="mb-3">
                         <div class="form-check">
@@ -435,6 +477,15 @@ document.getElementById('is_hr').addEventListener('change', function() {
     if (!this.checked) {
         document.querySelectorAll('.hr-company-checkbox').forEach(cb => cb.checked = false);
     }
+});
+
+/*
+add js to toggle visibility of top management companies section
+
+ */
+document.getElementById('is_top_management').addEventListener('change', function() {
+    document.getElementById('top_management_companies_section').style.display = this.checked ? 'block' : 'none';
+    
 });
 
 </script>

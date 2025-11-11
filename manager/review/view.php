@@ -119,7 +119,7 @@ $form_structure = $filtered_form_structure;
 <!-- Print Header -->
 <div class="print-header">
     <h1>Performance Appraisal Report</h1>
-    <p><strong>YBS International - Manager Review Copy</strong></p>
+    <p><strong>YBS International Berhad - Manager Review Copy</strong></p>
     <p>Confidential Document - For Internal Use Only</p>
 </div>
 
@@ -159,6 +159,10 @@ $form_structure = $filtered_form_structure;
             <td><strong style="font-size: 12pt;"><?php echo $appraisal_data['grade'] ?? 'N/A'; ?></strong></td>
             <td>Total Score:</td>
             <td><strong><?php echo $appraisal_data['total_score'] ? number_format($appraisal_data['total_score'], 2) . '%' : 'N/A'; ?></strong></td>
+        </tr>
+        <tr>
+            <td>Overall Comments:</td>
+            <td><strong><?php echo $appraisal_data['overall_comments'] ?? 'N/A'; ?></strong></td>
         </tr>
         <?php endif; ?>
     </table>
@@ -350,6 +354,12 @@ $form_structure = $filtered_form_structure;
                         <p class="mb-2">
                             <strong>Overall Score:</strong> 
                             <span class="fs-5 text-success"><?php echo number_format($appraisal_data['total_score'], 1); ?>%</span>
+                        </p>
+                        <?php endif; ?>
+                        <?php if (!empty($appraisal_data['overall_comments'])): ?>
+                        <p class="mb-2">
+                            <strong>Overall Comments:</strong> 
+                            <span class="fs-7 text"><?php echo $appraisal_data['overall_comments']; ?></span>
                         </p>
                         <?php endif; ?>
                     <?php else: ?>

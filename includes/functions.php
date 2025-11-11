@@ -362,4 +362,26 @@ function generateUniqueFilename($original_filename) {
     $filename = pathinfo($original_filename, PATHINFO_FILENAME);
     return $filename . '_' . uniqid() . '.' . $extension;
 }
+
+/* 
+check if user is top management
+
+*/
+
+function isTopManagement() {
+    if (!isLoggedIn()) return false;
+    
+    try {
+        $database = new Database();
+        $db = $database->getConnection();
+        $user = new User($db);
+        $user->id = $_SESSION['user_id'];
+        $user->readOne();
+
+        return $user->isTopManagement();
+    } catch (Exception $e) {
+        error_log("isTopManagement error: " . $e->getMessage());
+        return false;
+    }
+}
 ?>

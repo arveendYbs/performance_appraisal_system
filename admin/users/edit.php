@@ -38,6 +38,15 @@ try {
         redirect('index.php', 'User not found.', 'error');
     }
     
+    // After loading user data: load top-management company assignments directly from DB
+       $top_mgmt_companies_assigned = [];
+        if ($user->isTopManagement()) {
+            $assigned = $user->getTopManagementCompanies();
+            foreach ($assigned as $comp) {
+                $top_mgmt_companies_assigned[] = $comp['id'];
+            }
+        }
+    
     // Handle form submission
     if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
@@ -61,6 +70,8 @@ try {
             $is_hr = isset($_POST['is_hr']) ? 1 : 0;
             $hr_companies = $_POST['hr_companies'] ?? [];
             $is_confirmed = isset($_POST['is_confirmed']) ? 1 : 0;
+            $is_top_management = isset($_POST['is_top_management']) ? 1 : 0;
+            $top_mgmt_companies = $_POST['top_mgmt_companies'] ?? [];
 
             // Validation
             if (empty($name) || empty($emp_number) || empty($email) || empty($position) || 
@@ -100,6 +111,8 @@ try {
                 $user->company_id = $company_id;  // ADD THIS
                 $user->is_hr = $is_hr;            // ADD THIS
                 $user->is_confirmed = $is_confirmed; // ADD THIS
+                $user->is_top_management = $is_top_management; // ADD THIS
+error_log("Saving is_top_management for user {$user_id}: " . $user->is_top_management);
 
                 if ($user->update()) {
                     // Update password if provided
@@ -118,6 +131,21 @@ try {
                     } else {
                         // Remove all HR assignments if no longer HR
                         $user->syncHRCompanies([]);
+                    }
+                    
+
+                // Handle Top Management Company Assignments
+                if ($is_top_management) {
+                        // Remove old assignments
+                        $db->prepare("DELETE FROM top_management_companies WHERE user_id = ?")->execute([$user_id]);
+                        
+                        // Add new assignments
+                        if (!empty($top_mgmt_companies)) {
+                            $user->id = $user_id;
+                            foreach ($top_mgmt_companies as $comp_id) {
+                                $user->assignTopManagementToCompany($comp_id);
+                            }
+                        }
                     }
                     logActivity(
                         $_SESSION['user_id'],
@@ -312,25 +340,60 @@ try {
                         $user_hr_companies = $user->getHRCompanies();
                         $user_hr_company_ids = array_column($user_hr_companies, 'id');
                         ?>
-                        <div class="mb-3" id="hr_companies_section" style="display: <?php echo $user->is_hr ? 'block' : 'none'; ?>;">
-                            <label class="form-label">HR Responsible for Companies</label>
-                            <?php
-                            $companies_stmt2 = $company_model->getAll();
-                            while ($company = $companies_stmt2->fetch(PDO::FETCH_ASSOC)) {
-                                $checked = in_array($company['id'], $user_hr_company_ids) ? 'checked' : '';
-                                echo "
-                                <div class='form-check'>
-                                    <input class='form-check-input hr-company-checkbox' type='checkbox' name='hr_companies[]' 
-                                        value='{$company['id']}' id='hr_company_{$company['id']}' {$checked}>
-                                    <label class='form-check-label' for='hr_company_{$company['id']}'>
-                                        {$company['name']}
+                            <div class="mb-3" id="hr_companies_section" style="display: <?php echo $user->is_hr ? 'block' : 'none'; ?>;">
+                                <label class="form-label">HR Responsible for Companies</label>
+                                <?php
+                                $companies_stmt2 = $company_model->getAll();
+                                while ($company = $companies_stmt2->fetch(PDO::FETCH_ASSOC)) {
+                                    $checked = in_array($company['id'], $user_hr_company_ids) ? 'checked' : '';
+                                    echo "
+                                    <div class='form-check'>
+                                        <input class='form-check-input hr-company-checkbox' type='checkbox' name='hr_companies[]' 
+                                            value='{$company['id']}' id='hr_company_{$company['id']}' {$checked}>
+                                        <label class='form-check-label' for='hr_company_{$company['id']}'>
+                                            {$company['name']}
+                                        </label>
+                                    </div>";
+                                }
+                                ?>
+                            </div>
+
+
+
+                                <!-- Top Management Section -->
+                                <div class="mb-3">
+                                 <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="is_top_management" name="is_top_management" value="1" 
+                                        <?php echo $user->is_top_management ? 'checked' : ''; ?>>
+                                    <label class="form-check-label" for="is_top_management">
+                                        <strong>Top Management</strong>
                                     </label>
-                                </div>";
-                            }
-                            ?>
-                        </div>
+                                </div>
+
+                                <div class="mb-3" id="top_mgmt_companies_section" style="display: <?php echo $user->is_top_management ? 'block' : 'none'; ?>;">
+                                    <small class="form-label">Top Management Responsible for Companies</small>
+                                    <?php
+                                    $companies_stmt3 = $db->query("SELECT id, name FROM companies WHERE is_active = 1 ORDER BY name");
+                                    while ($company = $companies_stmt3->fetch(PDO::FETCH_ASSOC)) {
+                                        $checked = in_array($company['id'], $top_mgmt_companies_assigned) ? 'checked' : '';
+                                        echo "
+                                        <div class='form-check'>
+                                            <input class='form-check-input top-mgmt-company-checkbox' type='checkbox' name='top_mgmt_companies[]' 
+                                                value='{$company['id']}' id='top_mgmt_company_{$company['id']}' {$checked}>
+                                            <label class='form-check-label' for='top_mgmt_company_{$company['id']}'>
+                                                {$company['name']}
+                                            </label>
+                                        </div>";
+                                    }
+                                    ?>
+                                </div>
+
+
+
                                             <!--                                 <?php var_dump($user->is_confirmed); ?>
                                 -->
+
+    
                         <!-- Employment Confirmation Status -->
                         <div class="mb-3">
                             <div class="form-check">
@@ -344,6 +407,10 @@ try {
                                 Unconfirmed employees will require probation assessment during appraisal reviews.
                             </small>
                         </div>
+
+
+
+
 
                         <!-- Date Joined and Role -->
                         <div class="row">
@@ -417,6 +484,16 @@ try {
 </div>
 
 <script>
+
+
+
+document.getElementById('is_top_management').addEventListener('change', function() {
+    document.getElementById('top_mgmt_companies_section').style.display = this.checked ? 'block' : 'none';
+    if (!this.checked) {
+        document.querySelectorAll('.top-mgmt-company-checkbox').forEach(cb => cb.checked = false);
+    }
+});
+
     // Initialize Select2 for supervisor dropdown
 function matchCustom(params, data) {
     if ($.trim(params.term) === '') return data;

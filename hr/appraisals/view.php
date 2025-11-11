@@ -442,7 +442,7 @@ try {
                                     <div class="mb-2">
                                         <i class="bi bi-paperclip me-2"></i>
                                         <strong>Attachment:</strong>
-                                            <a href="download.php?file=<?php echo urlencode($response['employee_attachment']); ?>&type=employee" 
+                                            <a href="download.php? file=<?php echo urlencode($response['employee_attachment']); ?>&type=employee" 
                                                 class="text-primary ms-2" target="_blank">
                                             <?php echo htmlspecialchars(basename($response['employee_attachment'])); ?>
                                             <i class="bi bi-download ms-1"></i>

@@ -4,7 +4,6 @@ require_once __DIR__ . '/../../config/config.php';
 
 $file_path = $_GET['file'] ?? '';
 $type = $_GET['type'] ?? 'employee';
-
 if (empty($file_path)) {
     header("HTTP/1.0 404 Not Found");
     exit;
@@ -65,7 +64,7 @@ try {
     header('Cache-Control: no-cache, must-revalidate');
     
     readfile($full_path);
-    
+
 } catch (Exception $e) {
     error_log("File download error: " . $e->getMessage());
     header("HTTP/1.0 500 Internal Server Error");

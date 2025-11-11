@@ -5,6 +5,7 @@ require_once __DIR__ . '/../../config/email.php';
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+$_SESSION['user_id'] = $user['id'];
 
 /* if (!hasRole('manager') && !hasRole('admin')) {
     redirect(BASE_URL . '/index.php', 'Access denied.', 'error');
@@ -58,14 +59,14 @@ try {
                   SET status = 'completed', 
                       total_score = ?, 
                       grade = ?, 
-                      
+                      overall_comments = ?,
                       manager_reviewed_at = NOW(),
                       appraiser_id = ?
                   WHERE id = ?";
         
         $stmt = $db->prepare($query);
         
-        if ($stmt->execute([$total_score, $grade,  $_SESSION['user_id'], $appraisal_id])) {
+        if ($stmt->execute([$total_score, $grade, $overall_comments, $_SESSION['user_id'], $appraisal_id])) {
             error_log("✅ Appraisal marked as completed");
             error_log("Grade: {$grade}, Score: {$total_score}");
             

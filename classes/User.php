@@ -22,6 +22,7 @@ class User {
     public $company_id;
     public $is_hr;
     public $is_confirmed;
+    public $is_top_management;
 
     public function __construct($db) {
         $this->conn = $db;
@@ -149,6 +150,7 @@ class User {
         $query = "SELECT u.id, u.name, u.emp_number, u.email, u.emp_email,u.password, u.position, 
                          u.direct_superior, u.department, u.date_joined, u.site, u.role, 
                          u.company_id, u.is_hr, u.is_confirmed, u.is_active, u.created_at, u.updated_at,
+                         u.is_top_management,
                          s.name as superior_name, c.name as company_name
                   FROM " . $this->table_name . " u
                   LEFT JOIN " . $this->table_name . " s ON u.direct_superior = s.id
@@ -177,6 +179,7 @@ class User {
             $this->is_hr = $row['is_hr'];
             $this->is_confirmed = $row['is_confirmed'];
             $this->is_active = $row['is_active'];
+            $this->is_top_management = $row['is_top_management'];
             $this->created_at = $row['created_at'];
             $this->updated_at = $row['updated_at'];
             
@@ -197,7 +200,7 @@ class User {
                       direct_superior = :direct_superior, department = :department,
                       date_joined = :date_joined, site = :site, role = :role,
                       company_id = :company_id, is_hr = :is_hr, is_active = :is_active,
-                      is_confirmed = :is_confirmed
+                      is_confirmed = :is_confirmed, is_top_management = :is_top_management
                   WHERE id = :id";
 
         $stmt = $this->conn->prepare($query);
@@ -226,6 +229,7 @@ class User {
         $stmt->bindParam(':is_hr', $this->is_hr);
         $stmt->bindParam(':is_confirmed', $this->is_confirmed);
         $stmt->bindParam(':is_active', $this->is_active);
+        $stmt->bindParam(':is_top_management', $this->is_top_management);
         $stmt->bindParam(':id', $this->id);
 
         return $stmt->execute();
@@ -620,6 +624,85 @@ class User {
         return $stmt;
     }
   
+    /* 
+    check if user is top management 
+    */
     
-   
+    public function isTopManagement() {
+        return $this->is_top_management == 1;
+    }
+
+    /* 
+    get companies assigned to top management user 
+    */
+    public function getTopManagementCompanies() {
+        if (!$this->isTopManagement()) {
+            return [];
+        }
+
+        $query = "SELECT c.id, c.name, c.code
+                  FROM top_management_companies tmc
+                  JOIN companies c ON tmc.company_id = c.id
+                  WHERE tmc.user_id = ? AND c.is_active = 1
+                  ORDER BY c.name";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->execute([$this->id]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /* 
+    Assign Top Management user to a company 
+    */
+    public function assignTopManagementToCompany($company_id)
+    {
+        if (!$this->isTopManagement()) {
+            return false;
+        }
+
+        $query = "INSERT INTO top_management_companies (user_id, company_id) 
+                  VALUES (?, ?) 
+                  ON DUPLICATE KEY UPDATE assigned_at = CURRENT_TIMESTAMP";
+
+        $stmt = $this->conn->prepare($query);
+        return $stmt->execute([$this->id, $company_id]);
+
+    }
+
+    /* 
+    Remove Top management user from a company
+    */
+    public function removeTopManagementFromCompany($company_id)
+    {
+        $query = "DELETE FROM top_management_companies WHERE user_id = ? AND company_id = ?";
+        $stmt = $this->conn->prepare($query);
+        return $stmt->execute([$this->id, $company_id]);
+    }
+
+    /* 
+    Get all Top Management users for (admin management)
+
+    */
+
+    public static function getAllTopManagementUsers($db)
+    {
+        $query = "SELECT u.id, u.name, u.emp_number, u.email, u.position, 
+                         u.department, c.name as company_name,
+                         GROUP_CONCAT(DISTINCT tmc_comp.name SEPARATOR ', ') as top_management_companies
+                  FROM users u
+                  LEFT JOIN companies c ON u.company_id = c.id
+                  LEFT JOIN top_management_companies tmc ON u.id = tmc.user_id
+                  LEFT JOIN companies tmc_comp ON tmc.company_id = tmc_comp.id
+                  WHERE u.is_top_management = TRUE AND u.is_active = TRUE
+                  GROUP BY u.id
+                  ORDER BY u.name";
+
+        $stmt = $db->prepare($query);
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /*  */
 }
