@@ -20,7 +20,14 @@ if (isset($_SESSION['user_id'])) {
     $current_user->readOne();
     $is_hr = $current_user->isHR();
 }
-
+// Check if user is Top Management
+$is_top_management = false;
+if (isset($_SESSION['user_id'])) {
+    $current_user = new User($db);
+    $current_user->id = $_SESSION['user_id'];
+    $current_user->readOne();
+    $is_top_management = $current_user->isTopManagement();
+}
 
 // Check if user can access team features
 /* $can_manage_team = canAccessTeamFeatures();
@@ -114,6 +121,18 @@ $is_team_lead = !hasRole('manager') && !$is_dept_manager && $can_manage_team;
         <?php endif; ?>
 
 
+        <!-- Add this section after HR section -->
+        <?php if ($is_top_management): ?>
+        <div class="nav-header">Top Management</div>
+        <div class="nav-item">
+            <a href="<?php echo BASE_URL; ?>/admin/top-management/" 
+            class="nav-link <?php echo (strpos($current_path, '/admin/top-management/') !== false) ? 'active' : ''; ?>">
+                <i class="bi bi-graph-up-arrow"></i> Executive Dashboard
+            </a>
+        </div>
+        <?php endif; ?>
+
+
         <?php if (hasRole('manage') || hasRole('admin')): ?>
         <!-- Management Section -->
         <div class="nav-header">Management</div>
@@ -193,6 +212,7 @@ $is_team_lead = !hasRole('manager') && !$is_dept_manager && $can_manage_team;
             ?>
         </div>
         
+
        
         <div class="nav-item">
             <a href="<?php echo BASE_URL; ?>/manager/review/pending.php" 

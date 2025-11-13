@@ -28,7 +28,7 @@ try {
     
     // Build query with filters
     $query = "SELECT u.id, u.name, u.emp_number, u.email, u.emp_email, u.position, 
-                     u.department, u.site, u.role, u.is_active, u.is_hr,
+                     u.department, u.site, u.role, u.is_active, u.is_hr, u.is_top_management,
                      s.name as superior_name, c.name as company_name
               FROM users u
               LEFT JOIN users s ON u.direct_superior = s.id
@@ -83,7 +83,7 @@ try {
     
     // Get total count for pagination (before LIMIT)
     $count_query = str_replace("SELECT u.id, u.name, u.emp_number, u.email, u.emp_email, u.position, 
-                     u.department, u.site, u.role, u.is_active, u.is_hr,
+                     u.department, u.site, u.role, u.is_active, u.is_hr, u.is_top_management,
                      s.name as superior_name, c.name as company_name", "SELECT COUNT(*) as total", $query);
     $count_stmt = $db->prepare($count_query);
     $count_stmt->execute($params);
@@ -279,8 +279,13 @@ $query_string = !empty($query_params) ? '&' . implode('&', $query_params) : '';
                                         </div>
                                         <div>
                                             <strong><?php echo htmlspecialchars($user['name']); ?></strong>
+                                            
                                             <?php if ($user['is_hr']): ?>
                                             <span class="badge bg-info" style="font-size: 0.65rem;">HR</span>
+                                            <?php endif; ?>
+                                            <?php if ($user['is_top_management']): ?>
+                                            <span class="badge bg-success" style="font-size: 0.65rem;">Top Mgmt</span>
+                                               
                                             <?php endif; ?>
                                             <br>
                                             <small class="text-muted"><?php echo htmlspecialchars($user['emp_number']); ?></small>
