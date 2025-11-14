@@ -126,8 +126,15 @@ $is_team_lead = !hasRole('manager') && !$is_dept_manager && $can_manage_team;
         <div class="nav-header">Top Management</div>
         <div class="nav-item">
             <a href="<?php echo BASE_URL; ?>/admin/top-management/" 
-            class="nav-link <?php echo (strpos($current_path, '/admin/top-management/') !== false) ? 'active' : ''; ?>">
+            class="nav-link <?php echo (strpos($current_path, '/admin/top-management/index.php') !== false) ? 'active' : ''; ?>">
                 <i class="bi bi-graph-up-arrow"></i> Executive Dashboard
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a href="<?php echo BASE_URL; ?>/admin/top-management/" 
+            class="nav-link <?php echo ($current_page == 'managers.php')? 'active' : ''; ?>">
+                <i class="bi bi-graph-up-arrow"></i> Manager/HOD Performance
             </a>
         </div>
         <?php endif; ?>

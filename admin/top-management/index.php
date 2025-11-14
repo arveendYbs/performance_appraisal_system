@@ -281,7 +281,7 @@ try {
 
     <!-- Overall Statistics Cards -->
     <div class="row mb-4">
-        <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="col-xl-2 col-md-6 col-sm-6 mb-3">
             <div class="card border-primary">
                 <div class="card-body text-center">
                     <i class="bi bi-clipboard-data text-primary" style="font-size: 2rem;"></i>
@@ -382,6 +382,10 @@ try {
         </div>
     </div>
 
+    <?php
+echo "<script>console.log('Grade Data:', " . json_encode($grade_distribution) . ");</script>";
+?>
+
     <!-- Charts Row 2: Grade Distribution & Department Performance -->
     <div class="row mb-4">
         <div class="col-lg-6 mb-4">
@@ -393,9 +397,9 @@ try {
                     <?php if (empty($grade_distribution)): ?>
                     <p class="text-muted text-center py-5">No grade data available yet</p>
                     <?php else: ?>
-                    
-                    <canvas id="gradeDonutChart" height="250"></canvas>
-                    
+                    <div style="max-width: 400px; margin: 0 auto;">
+                        <canvas id="gradeDonutChart" height="250"></canvas>
+                    </div>
                     <div class="mt-3">
                         <table class="table table-sm">
                             <thead>
@@ -733,40 +737,69 @@ if (monthlyTrendCtx) {
 }
 <?php endif; ?>
 
-
-let gradeDonutChart = null; // store chart instance globally
-
-function renderGradeDonutChart(chartData) {
-    const ctx = document.getElementById('gradeDonutChart').getContext('2d');
-
-    // Destroy existing chart if it already exists
-    if (gradeDonutChart) {
-        gradeDonutChart.destroy();
-    }
-
-    gradeDonutChart = new Chart(ctx, {
+// Grade Distribution Donut Chart - FIXED VERSION
+<?php if (!empty($grade_distribution)): ?>
+const gradeDonutCtx = document.getElementById('gradeDonutChart');
+if (gradeDonutCtx) {
+    // Use json_encode for reliable data passing
+    const gradeData = {
+        labels: <?php echo json_encode(array_column($grade_distribution, 'grade')); ?>,
+        counts: <?php echo json_encode(array_column($grade_distribution, 'count')); ?>
+    };
+    
+    console.log('Grade Chart Data:', gradeData); // Debug log
+    
+    new Chart(gradeDonutCtx, {
         type: 'doughnut',
         data: {
-            labels: chartData.labels,
+            labels: gradeData.labels,
             datasets: [{
-                data: chartData.values,
+                data: gradeData.counts,
                 backgroundColor: [
-                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'
+                    '#28a745', // A - Green
+                    '#20c997', // B+ - Teal  
+                    '#17a2b8', // B - Cyan
+                    '#ffc107', // B- - Yellow
+                    '#fd7e14', // C+ - Orange
+                    '#dc3545'  // C - Red
                 ],
-                borderWidth: 1
+                borderWidth: 2,
+                borderColor: '#fff'
             }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false, // prevents vertical stretching
+            maintainAspectRatio: false,
+            cutout: '60%',
             plugins: {
                 legend: {
-                    position: 'bottom'
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                            return `Grade ${label}: ${value} (${percentage}%)`;
+                        }
+                    }
                 }
             }
         }
     });
+} else {
+    console.error('Canvas element gradeDonutChart not found!');
 }
+<?php endif; ?>
+
 
 
 // Department Performance Bar Chart
