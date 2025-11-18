@@ -199,18 +199,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             </div>
                         </form>
                         
-                        <div class="text-center mt-3">
+                        <!-- <div class="text-center mt-3">
                             <a href="forgot-password.php" class="text-decoration-none">
                                 <i class="bi bi-question-circle me-1"></i>Forgot your password?
                             </a>
-                        </div>
+                        </div> -->
                     </div>
                 </div>
                 
                 <div class="text-center mt-4">
                     <small class="text-white-50">
                         <?php echo APP_NAME; ?> v<?php echo APP_VERSION; ?> - 
-                        © <?php echo date('Y'); ?> YBS International by AP
+                        © <?php echo date('Y'); ?> YBS International Berhad by AP
                     </small>
                 </div>
             </div>

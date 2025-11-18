@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
-"""
-Generate Appraisal Excel Report - SIMPLIFIED VERSION
-Creates valid Excel files compatible with Microsoft Excel
-"""
+
 
 import sys
 import json
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
-from datetime import datetime
 
 def create_report(data_file, output_file):
     try:
@@ -21,15 +17,15 @@ def create_report(data_file, output_file):
         appraisals = data['appraisals']
         year = data['year']
         
-        print(f"Processing report for: {employee['name']}")
-        print(f"Number of appraisals: {len(appraisals)}")
+        print(f"Generating report for: {employee['name']}")
+        print(f"Appraisals: {len(appraisals)}")
         
         # Create workbook
         wb = Workbook()
         ws = wb.active
         ws.title = f"{year} Report"
         
-        # Define styles
+        # Styles
         header_fill = PatternFill(start_color='366092', end_color='366092', fill_type='solid')
         header_font = Font(bold=True, color='FFFFFF', size=11)
         subheader_fill = PatternFill(start_color='B4C6E7', end_color='B4C6E7', fill_type='solid')
@@ -37,10 +33,8 @@ def create_report(data_file, output_file):
         center_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
         left_align = Alignment(horizontal='left', vertical='center', wrap_text=True)
         thin_border = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin')
+            left=Side(style='thin'), right=Side(style='thin'),
+            top=Side(style='thin'), bottom=Side(style='thin')
         )
         
         current_row = 1
@@ -52,17 +46,24 @@ def create_report(data_file, output_file):
         current_row = 3
         
         # Section headers
-        ws.merge_cells(f'J{current_row}:V{current_row}')
+        ws.merge_cells(f'J{current_row}:U{current_row}')
         ws[f'J{current_row}'] = 'Performance Assessment - Employee Scores'
         ws[f'J{current_row}'].fill = subheader_fill
         ws[f'J{current_row}'].font = subheader_font
         ws[f'J{current_row}'].alignment = center_align
         
-        ws.merge_cells(f'W{current_row}:AI{current_row}')
-        ws[f'W{current_row}'] = 'Performance Assessment - Manager Scores'
-        ws[f'W{current_row}'].fill = subheader_fill
-        ws[f'W{current_row}'].font = subheader_font
-        ws[f'W{current_row}'].alignment = center_align
+        ws.merge_cells(f'Y{current_row}:AJ{current_row}')
+        ws[f'Y{current_row}'] = 'Performance Assessment - Manager Scores'
+        ws[f'Y{current_row}'].fill = subheader_fill
+        ws[f'Y{current_row}'].font = subheader_font
+        ws[f'Y{current_row}'].alignment = center_align
+        
+        # Training section header
+        ws.merge_cells(f'AN{current_row}:AW{current_row}')
+        ws[f'AN{current_row}'] = 'Training & Development Needs'
+        ws[f'AN{current_row}'].fill = subheader_fill
+        ws[f'AN{current_row}'].font = subheader_font
+        ws[f'AN{current_row}'].alignment = center_align
         
         current_row += 1
         
@@ -72,17 +73,21 @@ def create_report(data_file, output_file):
             'Position', 'Date Joined', 'Period'
         ]
         
-        # Add 12 section columns for employee
+        # Employee questions (Q1-Q12)
         for i in range(1, 13):
-            headers.append(f'S{i}')
+            headers.append(f'Q{i}')
         
         headers.extend(['Total', 'Score', 'Rating'])
         
-        # Add 12 section columns for manager
+        # Manager questions (Q1-Q12)  
         for i in range(1, 13):
-            headers.append(f'S{i}')
+            headers.append(f'Q{i}')
         
         headers.extend(['Total', 'Score', 'Final Rating'])
+        
+        # Training columns (T1-T10 for up to 10 training items)
+        for i in range(1, 11):
+            headers.append(f'T{i}')
         
         # Write headers
         for col_idx, header in enumerate(headers, start=1):
@@ -97,32 +102,36 @@ def create_report(data_file, output_file):
         
         # Set column widths
         widths = {
-            'A': 15, 'B': 15, 'C': 20, 'D': 12, 'E': 18, 'F': 12,
-            'G': 20, 'H': 12, 'I': 15
+            'A': 15, 'B': 12, 'C': 18, 'D': 12, 'E': 20, 'F': 10,
+            'G': 18, 'H': 12, 'I': 20
         }
-        # J to U (employee sections) - 8 width each
+        # Q1-Q12 for employee (J-U)
         for col in range(ord('J'), ord('V')):
-            widths[chr(col)] = 8
-        # V, W, X (totals/scores) - 10 width
+            widths[chr(col)] = 6
+        # Totals
         widths['V'] = 10
         widths['W'] = 10
         widths['X'] = 10
-        # Y to AJ (manager sections) - 8 width each
-        for col_num in range(25, 37):  # Y=25 to AJ=36
-            widths[get_column_letter(col_num)] = 8
-        # Totals/scores
+        # Q1-Q12 for manager (Y-AJ)
+        for col_num in range(25, 37):
+            widths[get_column_letter(col_num)] = 6
+        # Totals
         widths['AK'] = 10
         widths['AL'] = 10
         widths['AM'] = 12
+        # Training columns T1-T10 (AN-AW)
+        for col_num in range(40, 50):  # AN=40, AW=49
+            widths[get_column_letter(col_num)] = 30  # Wide for training names
         
         for col_letter, width in widths.items():
             ws.column_dimensions[col_letter].width = width
         
-        # Write data for each appraisal
+        # Write data rows
         for appraisal in appraisals:
-            sections = appraisal.get('sections', [])
+            questions = appraisal.get('questions', [])
             
-            # Basic info
+            print(f"Appraisal {appraisal.get('id')}: {len(questions)} questions")
+            
             row_data = [
                 employee.get('company_name', ''),
                 employee.get('department', ''),
@@ -135,17 +144,20 @@ def create_report(data_file, output_file):
                 f"{appraisal.get('period_from', '')} to {appraisal.get('period_to', '')}"
             ]
             
-            # Employee section scores (up to 12)
+            # Employee individual question scores (12 questions)
             for i in range(12):
-                if i < len(sections):
-                    row_data.append(sections[i].get('employee_score', 0))
+                if i < len(questions):
+                    score = questions[i].get('employee_rating', 0)
+                    # Only show non-zero scores
+                    row_data.append(score if score else '')
+                    print(f"  Emp Q{i+1}: {score}")
                 else:
                     row_data.append('')
             
-            # Employee total (formula)
+            # Employee total (formula: sum of Q1-Q12)
             row_data.append(f'=SUM(J{current_row}:U{current_row})')
             
-            # Employee calculated score (formula)
+            # Employee calculated score (based on role)
             role = employee.get('role', 'employee').lower()
             if 'manager' in role or 'admin' in role:
                 divisor = '1.2'
@@ -155,26 +167,40 @@ def create_report(data_file, output_file):
                 divisor = '1'
             row_data.append(f'=ROUND(V{current_row}/{divisor},0)')
             
-            # Employee rating (formula)
+            # Employee rating (A/B+/B/B-/C)
             rating_formula = f'=IF(W{current_row}=0,"",IF(W{current_row}<50,"C",IF(W{current_row}<60,"B-",IF(W{current_row}<75,"B",IF(W{current_row}<85,"B+","A")))))'
             row_data.append(rating_formula)
             
-            # Manager section scores (up to 12)
+            # Manager individual question scores (12 questions)
             for i in range(12):
-                if i < len(sections):
-                    row_data.append(sections[i].get('manager_score', 0))
+                if i < len(questions):
+                    score = questions[i].get('manager_rating', 0)
+                    # Only show non-zero scores
+                    row_data.append(score if score else '')
+                    print(f"  Mgr Q{i+1}: {score}")
                 else:
                     row_data.append('')
             
-            # Manager total (formula)
+            # Manager total (formula: sum of Q1-Q12)
             row_data.append(f'=SUM(Y{current_row}:AJ{current_row})')
             
-            # Manager calculated score (formula)
+            # Manager calculated score
             row_data.append(f'=ROUND(AK{current_row}/{divisor},0)')
             
-            # Final rating (formula)
+            # Final rating
             final_rating_formula = f'=IF(AL{current_row}=0,"",IF(AL{current_row}<50,"C",IF(AL{current_row}<60,"B-",IF(AL{current_row}<75,"B",IF(AL{current_row}<85,"B+","A")))))'
             row_data.append(final_rating_formula)
+            
+            # Training items - one per column (T1-T10)
+            training_needs = appraisal.get('training_needs', [])
+            print(f"  Training needs: {len(training_needs)} items")
+            
+            for i in range(10):  # 10 training columns
+                if i < len(training_needs):
+                    row_data.append(training_needs[i])
+                    print(f"  T{i+1}: {training_needs[i]}")
+                else:
+                    row_data.append('')  # Empty if no training item
             
             # Write row
             for col_idx, value in enumerate(row_data, start=1):
@@ -182,7 +208,7 @@ def create_report(data_file, output_file):
                 cell.value = value
                 cell.border = thin_border
                 
-                # Alignment
+                # Set alignment
                 if col_idx <= 9:
                     cell.alignment = left_align
                 else:
@@ -193,23 +219,14 @@ def create_report(data_file, output_file):
         # Freeze panes
         ws.freeze_panes = 'A5'
         
-        # Save workbook
+        # Save
         wb.save(output_file)
-        print(f"Excel report generated: {output_file}")
+        print(f"SUCCESS: Excel report saved")
         
-        # Verify file was created
         import os
-        if os.path.exists(output_file):
-            file_size = os.path.getsize(output_file)
-            print(f"File size: {file_size} bytes")
-            if file_size > 0:
-                return True
-            else:
-                print("ERROR: File is empty!")
-                return False
-        else:
-            print("ERROR: File was not created!")
-            return False
+        if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
+            return True
+        return False
             
     except Exception as e:
         print(f"ERROR: {str(e)}")
@@ -222,11 +239,5 @@ if __name__ == '__main__':
         print("Usage: python generate-excel-report.py <data_json> <output_xlsx>")
         sys.exit(1)
     
-    data_file = sys.argv[1]
-    output_file = sys.argv[2]
-    
-    print(f"Input JSON: {data_file}")
-    print(f"Output Excel: {output_file}")
-    
-    success = create_report(data_file, output_file)
+    success = create_report(sys.argv[1], sys.argv[2])
     sys.exit(0 if success else 1)
