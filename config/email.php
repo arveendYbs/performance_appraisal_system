@@ -9,14 +9,15 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 // Email configuration constants
-define('SMTP_FROM', 'noreply@ybsinternational.com');
+// 
+define('SMTP_FROM', 'it.team@ybsinternational.com');
 define('SMTP_FROM_NAME', 'E - Appraisal System');
 
 // SMTP configurations
 define('SMTP_HOST', 'smtp.office365.com');
 define('SMTP_PORT', 587);
-define('SMTP_USERNAME', 'arveend@ybsinternational.com');
-define('SMTP_PASSWORD', 'Ybs@8888!');
+define('SMTP_USERNAME', 'it.team@ybsinternational.com');
+define('SMTP_PASSWORD', 'Z)000848671287um');
 define('SMTP_ENCRYPTION', 'tls');
 
 function sendEmail($to, $subject, $message, $recipient_name = '', $options = []) {
@@ -26,7 +27,7 @@ function sendEmail($to, $subject, $message, $recipient_name = '', $options = [])
         // Server settings
         $mail->isSMTP();
         $mail->Host       = SMTP_HOST;
-        $mail->SMTPAuth   = false;
+        $mail->SMTPAuth   = true;
         $mail->Username   = SMTP_USERNAME;
         $mail->Password   = SMTP_PASSWORD;
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;

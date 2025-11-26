@@ -134,8 +134,8 @@ error_log("Saving is_top_management for user {$user_id}: " . $user->is_top_manag
                     }
                     
 
-                // Handle Top Management Company Assignments
-                if ($is_top_management) {
+                    // Handle Top Management Company Assignments
+                    if ($is_top_management) {
                         // Remove old assignments
                         $db->prepare("DELETE FROM top_management_companies WHERE user_id = ?")->execute([$user_id]);
                         

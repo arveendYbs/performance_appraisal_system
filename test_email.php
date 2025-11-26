@@ -2,7 +2,7 @@
 // test_email.php - DELETE THIS FILE AFTER TESTING
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/config/email.php';
-
+require_once __DIR__ . '/classes/Database.php';
 // Only allow admins to access this
 if (!isLoggedIn() || !hasRole('admin')) {
     die('Access denied. Admin only.');
@@ -46,6 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+ $database = new Database();
+    $db = $database->getConnection();
 // Check email logs
 $email_logs = [];
 if ($db) {

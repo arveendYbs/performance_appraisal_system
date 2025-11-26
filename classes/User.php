@@ -70,10 +70,10 @@ class User {
     public function create() {
         $query = "INSERT INTO " . $this->table_name . "
                   (name, emp_number, email, emp_email, position, direct_superior, 
-                   department, date_joined, site, role, company_id, is_hr, is_confirmed, password)
+                   department, date_joined, site, role, company_id, is_hr, is_confirmed, is_top_management, password)
                   VALUES (:name, :emp_number, :email, :emp_email, :position, 
                           :direct_superior, :department, :date_joined, :site, :role, 
-                          :company_id, :is_hr, :is_confirmed, :password)";
+                          :company_id, :is_hr, :is_confirmed, :is_top_management, :password)";
 
         $stmt = $this->conn->prepare($query);
 
@@ -100,6 +100,7 @@ class User {
         $stmt->bindParam(':company_id', $this->company_id);
         $stmt->bindParam(':is_hr', $this->is_hr);
         $stmt->bindParam(':is_confirmed', $this->is_confirmed);
+        $stmt->bindParam(':is_top_management', $this->is_top_management);
 
         $hashed_password = password_hash($this->password, HASH_ALGO);
         $stmt->bindParam(':password', $hashed_password);
