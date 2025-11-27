@@ -35,11 +35,10 @@ class User {
         $query = "SELECT id, name, emp_number, email, emp_email, position, direct_superior, 
                          department, date_joined, site, role, password, is_active
                   FROM " . $this->table_name . " 
-                  WHERE (email = :email OR emp_email = :email) AND is_active = 1";
+                  WHERE (email = ? OR emp_email = ?) AND is_active = 1";
         
         $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':email', $email);
-        $stmt->execute();
+        $stmt->execute([$email, $email]);
 
         if ($stmt->rowCount() > 0) {
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
