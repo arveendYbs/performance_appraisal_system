@@ -704,5 +704,98 @@ class User {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /*  */
+    /*  generate password */
+    public function generatePasswordResetToken($email)
+    {
+        // Check if user exists
+        $query = "SELECT id FROM " . $this->table_name . " 
+                WHERE (email = ? OR emp_email = ?) AND is_active = 1";
+        $stmt = $this->conn->prepare($query);
+        $stmt->execute([$email, $email]);
+        
+        if ($stmt->rowCount() == 0) {
+            return false;
+        }
+        
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        $user_id = $user['id'];
+        
+        // Generate secure token
+        $token = bin2hex(random_bytes(32));
+        $expires_at = date('Y-m-d H:i:s', strtotime('+1 hour'));
+        
+        // Delete any existing unused tokens for this user
+        $delete_query = "DELETE FROM password_resets WHERE user_id = ? AND used = 0";
+        $delete_stmt = $this->conn->prepare($delete_query);
+        $delete_stmt->execute([$user_id]);
+        
+        // Insert new token
+        $insert_query = "INSERT INTO password_resets (user_id, email, token, expires_at) 
+                 VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))";
+        $insert_stmt = $this->conn->prepare($insert_query);
+        
+       if ($insert_stmt->execute([$user_id, $email, $token])) {
+            return $token;
+        }
+        return false;
+    }
+
+        
+    /**
+     * Verify password reset token
+     */
+    public function verifyResetToken($token) {
+        $query = "SELECT pr.*, u.id as user_id, u.name, u.email, u.emp_email
+                FROM password_resets pr
+                JOIN users u ON pr.user_id = u.id
+                WHERE pr.token = ? 
+                AND pr.used = 0 
+                AND pr.expires_at > NOW()
+                AND u.is_active = 1";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->execute([$token]);
+        
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+        
+    /**
+     * Reset password using token
+     */
+    public function resetPassword($token, $new_password) {
+        // Verify token
+        $reset_data = $this->verifyResetToken($token);
+        
+        if (!$reset_data) {
+            return false;
+        }
+        
+        $user_id = $reset_data['user_id'];
+        
+        try {
+            $this->conn->beginTransaction();
+            
+            // Update password
+            $hashed_password = password_hash($new_password, HASH_ALGO);
+            $update_query = "UPDATE " . $this->table_name . " SET password = ? WHERE id = ?";
+            $update_stmt = $this->conn->prepare($update_query);
+            $update_stmt->execute([$hashed_password, $user_id]);
+            
+            // Mark token as used
+            $mark_used_query = "UPDATE password_resets SET used = 1 WHERE token = ?";
+            $mark_stmt = $this->conn->prepare($mark_used_query);
+            $mark_stmt->execute([$token]);
+            
+            $this->conn->commit();
+            return true;
+            
+        } catch (Exception $e) {
+            $this->conn->rollBack();
+            error_log("Password reset error: " . $e->getMessage());
+            return false;
+        }
+    }
+
+
 }

@@ -199,11 +199,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             </div>
                         </form>
                         
-                        <!-- <div class="text-center mt-3">
+                        <div class="text-center mt-3">
                             <a href="forgot-password.php" class="text-decoration-none">
                                 <i class="bi bi-question-circle me-1"></i>Forgot your password?
                             </a>
-                        </div> -->
+                        </div>
                     </div>
                 </div>
                 
