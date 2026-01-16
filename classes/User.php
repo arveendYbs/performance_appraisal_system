@@ -339,7 +339,7 @@ class User {
     /**
      * Check if email exists
      */
-    public function emailExists($email, $exclude_id = null) {
+    /* public function emailExists($email, $exclude_id = null) {
         $query = "SELECT id FROM " . $this->table_name . " 
                   WHERE (email = :email OR emp_email = :email)";
         
@@ -355,6 +355,22 @@ class User {
         }
         
         $stmt->execute();
+        return $stmt->rowCount() > 0;
+    } */
+    public function emailExists($email, $exclude_id = null) {
+        $query = "SELECT id FROM " . $this->table_name . " 
+                WHERE (email = ? OR emp_email = ?)";
+        
+        $params = [$email, $email];
+        
+        if ($exclude_id) {
+            $query .= " AND id != ?";
+            $params[] = $exclude_id;
+        }
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->execute($params);
+        
         return $stmt->rowCount() > 0;
     }
 

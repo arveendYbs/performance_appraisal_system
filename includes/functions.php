@@ -94,6 +94,21 @@ function canManageUsers() {
 
 }
 
+function debugPDOStatement($query, $params) {
+    error_log("=== PDO DEBUG ===");
+    error_log("Query: " . $query);
+    error_log("Params: " . print_r($params, true));
+    
+    // Count placeholders
+    $question_marks = substr_count($query, '?');
+    $named_params = preg_match_all('/:[a-zA-Z_][a-zA-Z0-9_]*/', $query);
+    
+    error_log("Question mark placeholders: " . $question_marks);
+    error_log("Named placeholders: " . $named_params);
+    error_log("Parameter count: " . (is_array($params) ? count($params) : 1));
+    error_log("=================");
+}
+
 /**
  * Check if user has subordinates (team members)
  */

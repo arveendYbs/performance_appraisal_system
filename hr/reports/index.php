@@ -13,6 +13,7 @@ $user = new User($db);
 $user->id = $_SESSION['user_id'];
 $user->readOne();
 
+
 if (!$user->isHR()) {
     redirect(BASE_URL . '/index.php', 'Access denied. HR personnel only.', 'error');
 }
@@ -218,11 +219,56 @@ function generateDepartmentReport($db, $conditions, $params) {
                         </select>
                     </div>
                     
-                    <div class="col-md-3 d-flex align-items-end">
-                        <button type="button" class="btn btn-success w-100" onclick="exportReport()">
-                            <i class="bi bi-download me-2"></i>Export to Excel
-                        </button>
+                    
+                                    <!-- Replace the existing "Export to Excel" button with this: -->
+                    <div class="col-md-3 d-flex align-items-end gap-2">
+                        <div class="dropdown w-100">
+                            <button class="btn btn-success dropdown-toggle w-100" type="button" 
+                                    id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-file-earmark-excel me-2"></i>Export to Excel
+                            </button>
+                            <ul class="dropdown-menu w-100" aria-labelledby="exportDropdown">
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="exportCompanyExcel('detailed'); return false;">
+                                        <i class="bi bi-file-earmark-text me-2"></i>
+                                        <strong>Detailed Report</strong>
+                                        <br>
+                                        <small class="text-muted">One sheet per employee with full details</small>
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="exportCompanyExcel('summary'); return false;">
+                                        <i class="bi bi-table me-2"></i>
+                                        <strong>Summary Report</strong>
+                                        <br>
+                                        <small class="text-muted">All employees in rows for analysis</small>
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="exportCompanyExcel('comprehensive'); return false;">
+                                        <i class="bi bi-table me-2"></i>
+                                        <strong>Comprehensive</strong>
+                                        <br>
+                                        <small class="text-muted">All scores & Training Needs</small>
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="exportAllEmployeesExcel(); return false;">
+                                        <i class="bi bi-people-fill me-2"></i>
+                                        <strong>All Employees Report (Python)</strong>
+                                        <br>
+                                        <small class="text-muted">Detailed report for all employees using Python</small>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
+                
+                                                                                            
+
                 </div>
             </div>
         </div>
@@ -493,7 +539,6 @@ function generateDepartmentReport($db, $conditions, $params) {
 
 <!-- Include Chart.js for visualizations -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
 function changeReport() {
     const reportType = document.getElementById('report_type').value;
@@ -509,9 +554,51 @@ function applyFilters() {
     window.location.href = `?report=${reportType}&company=${company}&year=${year}`;
 }
 
-function exportReport() {
-    alert('Export functionality will be implemented. This will generate an Excel file with the current report data.');
-    // You can implement CSV/Excel export here
+// CORRECTED: Export function with type parameter
+function exportCompanyExcel(type) {
+    const company = document.getElementById('company_filter').value;
+    const year = document.getElementById('year_filter').value;
+    
+    if (!company) {
+        alert('Please select a company first');
+        return;
+    }
+    
+    // Show loading indicator
+    const dropdownBtn = document.getElementById('exportDropdown');
+    const originalText = dropdownBtn.innerHTML;
+    dropdownBtn.disabled = true;
+    dropdownBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
+    
+    // Navigate to export script with type parameter
+    window.location.href = `export_company_excel.php?company=${company}&year=${year}&type=${type}`;
+    
+    // Re-enable button after a delay
+    setTimeout(() => {
+        dropdownBtn.disabled = false;
+        dropdownBtn.innerHTML = originalText;
+    }, 3000);
+}
+function exportAllEmployeesExcel() {
+    const company = document.getElementById('company_filter').value;
+    const year = document.getElementById('year_filter').value;
+    
+    if (!company) {
+        alert('Please select a company first');
+        return;
+    }
+    
+    const dropdownBtn = document.getElementById('exportDropdown');
+    const originalText = dropdownBtn.innerHTML;
+    dropdownBtn.disabled = true;
+    dropdownBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
+    
+    window.location.href = `generate_all_employees_excel.php?company=${company}&year=${year}`;
+    
+    setTimeout(() => {
+        dropdownBtn.disabled = false;
+        dropdownBtn.innerHTML = originalText;
+    }, 3000);
 }
 
 // Chart for Overview Report

@@ -184,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <a href="login.php" class="btn btn-outline-secondary">
                             <i class="bi bi-arrow-left me-2"></i>Back to Login
                         </a>
-                    </div>
+                    </div> 
                 </form>
                 <?php endif; ?>
             </div>

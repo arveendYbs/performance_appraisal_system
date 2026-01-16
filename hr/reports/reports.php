@@ -244,7 +244,7 @@ try {
                                     <span class="badge bg-success"><?php echo $employee['completed_appraisals']; ?></span>
                                 </td>
                                 <td class="text-center">
-                                    <a href="generate-excel.php?user_id=<?php echo $employee['id']; ?>&year=<?php echo $year_filter; ?>" 
+                                    <a href="generate-excel-test.php?user_id=<?php echo $employee['id']; ?>&year=<?php echo $year_filter; ?>" 
                                        class="btn btn-sm btn-success"
                                        title="Download Excel Report">
                                         <i class="bi bi-file-earmark-excel me-1"></i>Download Report
@@ -278,4 +278,18 @@ try {
     </div>
 </div>
 
+<script>
+function exportCompanyExcel(type) {
+    const company = document.getElementById('company_filter').value;
+    const year = document.getElementById('year_filter').value;
+    
+    if (!company) {
+        alert('Please select a company first');
+        return;
+    }
+    
+    // Navigate to export script with type parameter
+    window.location.href = `export_company_excel.php?company=${company}&year=${year}&type=${type}`;
+}
+</script>
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

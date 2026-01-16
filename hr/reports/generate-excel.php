@@ -13,6 +13,10 @@ $user = new User($db);
 $user->id = $_SESSION['user_id'];
 $user->readOne();
 
+// FIX: Add this check to ensure only HR or Admins can download reports
+if (!$user->isHR() && $user->role !== 'admin') {
+    redirect(BASE_URL . '/index.php', 'Access denied.', 'error');
+}
 $user_id = $_GET['user_id'] ?? 0;
 $year = $_GET['year'] ?? date('Y');
 
