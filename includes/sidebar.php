@@ -6,6 +6,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 $current_path = $_SERVER['REQUEST_URI'];
 
 
+
 // Check user roles
 $is_admin = hasRole('admin');
 $is_manager = hasRole('manager');
@@ -19,7 +20,14 @@ if (isset($_SESSION['user_id'])) {
     $current_user->readOne();
     $is_hr = $current_user->isHR();
 }
-
+// Check if user is Top Management
+$is_top_management = false;
+if (isset($_SESSION['user_id'])) {
+    $current_user = new User($db);
+    $current_user->id = $_SESSION['user_id'];
+    $current_user->readOne();
+    $is_top_management = $current_user->isTopManagement();
+}
 
 // Check if user can access team features
 /* $can_manage_team = canAccessTeamFeatures();
@@ -30,7 +38,26 @@ $can_manage_team = canAccessTeamFeatures();
 $is_dept_manager = isDepartmentManager();
 $is_team_lead = !hasRole('manager') && !$is_dept_manager && $can_manage_team;
 ?>
+      <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+
+
+  <!-- jQuery -->
+    <link href="/assets/css/custom.css" rel="stylesheet">
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Select2 JS -->
+
+<!-- Select2 CSS + JS -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/js/select2.full.min.js"></script>
+
+    <link href="/assets/css/custom.css" rel="stylesheet">
 <div class="sidebar" id="sidebar">
     <div class="logo">
     <img src="<?php echo BASE_URL; ?>/assets/images/logo.png" 
@@ -94,6 +121,25 @@ $is_team_lead = !hasRole('manager') && !$is_dept_manager && $can_manage_team;
         <?php endif; ?>
 
 
+        <!-- Add this section after HR section -->
+        <?php if ($is_top_management): ?>
+        <div class="nav-header">Top Management</div>
+        <div class="nav-item">
+            <a href="<?php echo BASE_URL; ?>/admin/top-management/index.php" 
+            class="nav-link <?php echo (strpos($current_path, '/admin/top-management/index.php') !== false) ? 'active' : ''; ?>">
+                <i class="bi bi-graph-up-arrow"></i> Executive Dashboard
+            </a>
+        </div>
+
+        <div class="nav-item">
+            <a href="<?php echo BASE_URL; ?>/admin/top-management/managers.php" 
+            class="nav-link <?php echo ($current_page == 'managers.php')? 'active' : ''; ?>">
+                <i class="bi bi-graph-up-arrow"></i> Manager/HOD Performance
+            </a>
+        </div>
+        <?php endif; ?>
+
+
         <?php if (hasRole('manage') || hasRole('admin')): ?>
         <!-- Management Section -->
         <div class="nav-header">Management</div>
@@ -154,6 +200,12 @@ $is_team_lead = !hasRole('manager') && !$is_dept_manager && $can_manage_team;
                                 <i class="bi bi-graph-up me-2"></i>Reports
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo BASE_URL; ?>/hr/reports/reports.php">
+                                <i class="bi bi-file-earmark-arrow-down me-2"></i>Reports Export
+                            </a>
+                        </li>
+
                     </ul>
                 </div>
             </li>
@@ -173,6 +225,7 @@ $is_team_lead = !hasRole('manager') && !$is_dept_manager && $can_manage_team;
             ?>
         </div>
         
+
        
         <div class="nav-item">
             <a href="<?php echo BASE_URL; ?>/manager/review/pending.php" 

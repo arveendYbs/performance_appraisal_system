@@ -8,17 +8,12 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-// Email configuration constants
-define('SMTP_FROM', 'noreply@ybsinternational.com');
-define('SMTP_FROM_NAME', 'E - Appraisal System');
+// Email constants are now loaded from .env via config.php
+// No need to redefine them here
 
-// SMTP configurations
-define('SMTP_HOST', 'smtp.office365.com');
-define('SMTP_PORT', 587);
-define('SMTP_USERNAME', 'arveend@ybsinternational.com');
-define('SMTP_PASSWORD', 'Ybs@8888!');
-define('SMTP_ENCRYPTION', 'tls');
-
+/**
+ * Send email using PHPMailer
+ */
 function sendEmail($to, $subject, $message, $recipient_name = '', $options = []) {
     $mail = new PHPMailer(true);
 
@@ -26,11 +21,22 @@ function sendEmail($to, $subject, $message, $recipient_name = '', $options = [])
         // Server settings
         $mail->isSMTP();
         $mail->Host       = SMTP_HOST;
-        $mail->SMTPAuth   = false;
+        $mail->SMTPAuth   = true;
         $mail->Username   = SMTP_USERNAME;
         $mail->Password   = SMTP_PASSWORD;
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->SMTPSecure = SMTP_ENCRYPTION;
         $mail->Port       = SMTP_PORT;
+
+        // Disable SSL verification for local development (remove in production)
+        if (defined('APP_ENV') && APP_ENV !== 'production') {
+            $mail->SMTPOptions = array(
+                'ssl' => array(
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                    'allow_self_signed' => true
+                )
+            );
+        }
 
         // Recipients
         $mail->setFrom(SMTP_FROM, SMTP_FROM_NAME);

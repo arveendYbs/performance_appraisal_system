@@ -3,6 +3,7 @@
 // admin/users/create.php
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/sidebar.php';
+require_once __DIR__ . '/../../includes/header.php';
 
 /* if (!hasRole('admin')) {
     redirect(BASE_URL . '/index.php', 'Access denied.', 'error');
@@ -12,6 +13,9 @@ if (!canManageUsers()) {
     redirect(BASE_URL . '/index.php', 'Access denied.', 'error');
 }
 $error_message = '';
+
+
+
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
@@ -33,6 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $is_hr = isset($_POST['is_hr']) ? 1 : 0;
         $is_confirmed = isset($_POST['is_confirmed']) ? 1 : 0;
         $hr_companies = $_POST['hr_companies'] ?? [];
+        $is_top_management = isset($_POST['is_top_management']) ? 1 : 0;
+        $top_mgmt_companies = $_POST['top_mgmt_companies'] ?? [];
 
         // Validation
         if (empty($name) || empty($emp_number) || empty($email) || empty($company_id) || empty($position) || 
@@ -68,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $user->is_hr = $is_hr;            // ADD THIS
                 $user->is_confirmed = $is_confirmed; // ADD THIS
                 $user->password = $password;
+                $user->is_top_management = $is_top_management; // ADD THIS
 
                 if ($user->create()) {
                      $user_id = $db->lastInsertId();
@@ -77,6 +84,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $user->id = $user_id;
                         foreach ($hr_companies as $comp_id) {
                             $user->assignToCompany($comp_id);
+                        }
+                    }
+
+                    if ($is_top_management && !empty($top_mgmt_companies)) {
+                        $user->id = $user_id;
+                        foreach ($top_mgmt_companies as $comp_id) {
+                            $user->assignTopManagementToCompany($comp_id);
                         }
                     }
                     logActivity($_SESSION['user_id'], 'CREATE', 'users', $user->id, null,
@@ -95,7 +109,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-// Get potential supervisors
+
+/* // Get potential supervisors
 try {
     $database = new Database();
     $db = $database->getConnection();
@@ -106,8 +121,7 @@ try {
 } catch (Exception $e) {
     $supervisors = [];
 }
-
-require_once __DIR__ . '/../../includes/header.php';
+ */
 ?>
 
 <div class="row">
@@ -179,11 +193,13 @@ require_once __DIR__ . '/../../includes/header.php';
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="position" class="form-label">Position <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="position" name="position" required
+                                    <input type="text" class="form-control" id="position" name="position" required
                                        value="<?php echo htmlspecialchars($_POST['position'] ?? ''); ?>">
                             </div>
                         </div>
-                        <div class="col-md-6">
+
+                        <!-- new feature -- select all and search users for direct superior -->
+                       <!--  <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="direct_superior" class="form-label">Direct Superior</label>
                                 <select class="form-select" id="direct_superior" name="direct_superior">
@@ -196,8 +212,45 @@ require_once __DIR__ . '/../../includes/header.php';
                                     <?php endforeach; ?>
                                 </select>
                             </div>
+                        </div> -->
+
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="direct_superior" class="form-label">Direct Superior</label>
+                                    <select class="form-select select-supervisor" id="direct_superior" name="direct_superior">
+                                        <option value="">Select supervisor...</option>
+                                            <?php 
+                                            $database = new Database();
+                                            $db = $database->getConnection();
+                                            $user_model = new User($db);
+                                            $supervisors = $user_model->getAllPotentialSupervisors();
+
+                                            while ($supervisor = $supervisors->fetch(PDO::FETCH_ASSOC)): ?>
+                                            <option value="<?php echo $supervisor['id']; ?>"
+                                                    data-position="<?php echo htmlspecialchars($supervisor['position']); ?>"
+                                                    data-department="<?php echo htmlspecialchars($supervisor['department']); ?>"
+                                                    data-company="<?php echo htmlspecialchars($supervisor['company_name']); ?>"
+                                                    <?php echo (($_POST['direct_superior'] ?? '') == $supervisor['id']) ? 'selected' : ''; ?>>
+                                                <?php
+                                                echo htmlspecialchars($supervisor['name']) . ' - ' . 
+                                                    htmlspecialchars($supervisor['position']) . ' (' . 
+                                                    htmlspecialchars($supervisor['department']) . 
+                                                    ($supervisor['company_name'] ? ', ' . htmlspecialchars($supervisor['company_name']) : '') . ')';
+                                                ?>
+                                            </option>
+                                        <?php endwhile; ?>
+                                    </select>
+                                <div class="form-text">
+                                    <i class="bi bi-search me-1"></i>Type to search by name, position, or department
+                                </div>
+                            </div>
                         </div>
+
+                                        
+                        
                     </div>
+                    
+
                     
                     <div class="row">
                         <div class="col-md-6">
@@ -260,6 +313,38 @@ require_once __DIR__ . '/../../includes/header.php';
                         }
 
 
+                        ?>
+                    </div>
+
+                    <!-- top management status -->
+
+                    <div class ="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_top_management" name="is_top_management" value="1">
+                            <label class="form-check-label" for="is_top_management">
+                                <strong>Top Management</strong> - Has access to all appraisal data across the organization.
+                            </label>
+                        </div>
+                        <small class="text-muted">
+                            Top Management users have elevated privileges and can oversee company-wide performance appraisals.
+                        </small>
+                    </div>
+
+                    <!-- top managemnet companies -->
+                    <div class="mb-3" id="top_management_companies_section" style="display: none;">
+                        <label class="form-label">Top Management Responsible for Companies</label>
+                        <?php
+                        $companies_stmt3 = $company_model->getAll();
+                        while ($company = $companies_stmt3->fetch(PDO::FETCH_ASSOC)) {
+                            echo "
+                            <div class='form-check'>
+                                <input class='form-check-input top-management-company-checkbox' type='checkbox' name='top_management_companies[]' 
+                                    value='{$company['id']}' id='top_management_company_{$company['id']}'>  
+                                <label class='form-check-label' for='top_management_company_{$company['id']}'>
+                                    {$company['name']}
+                                </label>
+                            </div>";
+                        }
                         ?>
                     </div>
 
@@ -328,6 +413,45 @@ require_once __DIR__ . '/../../includes/header.php';
 </div>
 
 <script>
+// Initialize Select2 for supervisor dropdown
+function matchCustom(params, data) {
+    if ($.trim(params.term) === '') return data;
+    if (typeof data.text === 'undefined' || data.text === 'Select supervisor...') return null;
+
+    const searchTerm = params.term.toLowerCase();
+    const text = data.text.toLowerCase();
+    const position = $(data.element).data('position');
+    const department = $(data.element).data('department');
+    const company = $(data.element).data('company');
+
+    if (
+        text.indexOf(searchTerm) > -1 ||
+        (position && position.toLowerCase().indexOf(searchTerm) > -1) ||
+        (department && department.toLowerCase().indexOf(searchTerm) > -1) ||
+        (company && company.toLowerCase().indexOf(searchTerm) > -1)
+    ) {
+        return data;
+    }
+    return null;
+}
+
+$(document).ready(function() {
+    console.log("jQuery version:", $.fn.jquery);
+    console.log("Select2 available:", typeof $.fn.select2);
+    $('.select-supervisor').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Select or search for supervisor...',
+        allowClear: true,
+        matcher: matchCustom
+    });
+});
+
+// Sidebar toggle for mobile
+document.getElementById('sidebar-toggle')?.addEventListener('click', function() {
+    document.getElementById('sidebar').classList.toggle('show');
+});
+
 // Password confirmation validation
 document.addEventListener('DOMContentLoaded', function() {
     const password = document.getElementById('password');
@@ -355,6 +479,14 @@ document.getElementById('is_hr').addEventListener('change', function() {
     }
 });
 
-</script>
+/*
+add js to toggle visibility of top management companies section
 
+ */
+document.getElementById('is_top_management').addEventListener('change', function() {
+    document.getElementById('top_management_companies_section').style.display = this.checked ? 'block' : 'none';
+    
+});
+
+</script>
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

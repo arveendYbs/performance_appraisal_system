@@ -1,56 +1,30 @@
 <?php
-
-
+require_once 'vendor/autoload.php';
 require_once 'config/config.php';
 
+// session_start() probably already in config.php
 
-// Find and replace the existing query with this:
-try {
-    $database = new Database();
-    $db = $database->getConnection();
-    
-    // Debug: Log the current user's ID
-    error_log("Manager ID: " . $_SESSION['user_id']);
-    
-    // Get team members with their latest appraisal status
-    $query = "SELECT 
-        u.id,
-        u.name,
-        u.emp_number,
-        u.position,
-        u.department,
-        u.date_joined,
-        COALESCE(a.status, 'pending') as appraisal_status,
-        a.id as appraisal_id
-    FROM users u
-    LEFT JOIN (
-        SELECT user_id, MAX(created_at) as latest_date
-        FROM appraisals
-        GROUP BY user_id
-    ) latest ON u.id = latest.user_id
-    LEFT JOIN appraisals a ON latest.user_id = a.user_id 
-        AND latest.latest_date = a.created_at
-    WHERE u.direct_superior = :manager_id 
-        AND u.is_active = 1
-    ORDER BY u.name";
+$database = new Database();
+$db = $database->getConnection();
 
-    $stmt = $db->prepare($query);
-    $stmt->bindParam(':manager_id', $_SESSION['user_id']);
-    $stmt->execute();
+$user = new User($db);
 
+// example: login by email
+$user->email = trim($_POST['email']);
 
-    // Debug: Count results
-    $team_members = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    error_log("Number of team members found: " . count($team_members));
-    
-    // Debug: Print team members
-    foreach ($team_members as $member) {
-        error_log("Member: " . $member['name'] . " (ID: " . $member['id'] . ")");
+if ($user->readOne()) {
+
+    // user found
+    if (password_verify(trim($_POST['password']), $user->password)) {
+
+        $_SESSION['user_id'] = $user->id;
+        header("Location: dashboard.php");
+        exit;
+
+    } else {
+        echo "Wrong password";
     }
-        echo "<pre>";
-print_r($team_members);
-echo "</pre>";
-exit;
-} catch (Exception $e) {
-    error_log("Error: " . $e->getMessage());
+
+} else {
+    echo "User not found";
 }

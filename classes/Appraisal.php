@@ -14,6 +14,7 @@ class Appraisal {
     public $total_score;
     public $performance_score;
     public $grade;
+    public $overall_comments;
 
     public function __construct($db) {
         $this->conn = $db;

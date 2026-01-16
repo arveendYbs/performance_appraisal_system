@@ -22,6 +22,7 @@ class User {
     public $company_id;
     public $is_hr;
     public $is_confirmed;
+    public $is_top_management;
 
     public function __construct($db) {
         $this->conn = $db;
@@ -34,11 +35,10 @@ class User {
         $query = "SELECT id, name, emp_number, email, emp_email, position, direct_superior, 
                          department, date_joined, site, role, password, is_active
                   FROM " . $this->table_name . " 
-                  WHERE (email = :email OR emp_email = :email) AND is_active = 1";
+                  WHERE (email = ? OR emp_email = ?) AND is_active = 1";
         
         $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':email', $email);
-        $stmt->execute();
+        $stmt->execute([$email, $email]);
 
         if ($stmt->rowCount() > 0) {
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -69,10 +69,10 @@ class User {
     public function create() {
         $query = "INSERT INTO " . $this->table_name . "
                   (name, emp_number, email, emp_email, position, direct_superior, 
-                   department, date_joined, site, role, company_id, is_hr, is_confirmed, password)
+                   department, date_joined, site, role, company_id, is_hr, is_confirmed, is_top_management, password)
                   VALUES (:name, :emp_number, :email, :emp_email, :position, 
                           :direct_superior, :department, :date_joined, :site, :role, 
-                          :company_id, :is_hr, :is_confirmed, :password)";
+                          :company_id, :is_hr, :is_confirmed, :is_top_management, :password)";
 
         $stmt = $this->conn->prepare($query);
 
@@ -99,6 +99,7 @@ class User {
         $stmt->bindParam(':company_id', $this->company_id);
         $stmt->bindParam(':is_hr', $this->is_hr);
         $stmt->bindParam(':is_confirmed', $this->is_confirmed);
+        $stmt->bindParam(':is_top_management', $this->is_top_management);
 
         $hashed_password = password_hash($this->password, HASH_ALGO);
         $stmt->bindParam(':password', $hashed_password);
@@ -149,6 +150,7 @@ class User {
         $query = "SELECT u.id, u.name, u.emp_number, u.email, u.emp_email,u.password, u.position, 
                          u.direct_superior, u.department, u.date_joined, u.site, u.role, 
                          u.company_id, u.is_hr, u.is_confirmed, u.is_active, u.created_at, u.updated_at,
+                         u.is_top_management,
                          s.name as superior_name, c.name as company_name
                   FROM " . $this->table_name . " u
                   LEFT JOIN " . $this->table_name . " s ON u.direct_superior = s.id
@@ -177,6 +179,7 @@ class User {
             $this->is_hr = $row['is_hr'];
             $this->is_confirmed = $row['is_confirmed'];
             $this->is_active = $row['is_active'];
+            $this->is_top_management = $row['is_top_management'];
             $this->created_at = $row['created_at'];
             $this->updated_at = $row['updated_at'];
             
@@ -197,7 +200,7 @@ class User {
                       direct_superior = :direct_superior, department = :department,
                       date_joined = :date_joined, site = :site, role = :role,
                       company_id = :company_id, is_hr = :is_hr, is_active = :is_active,
-                      is_confirmed = :is_confirmed
+                      is_confirmed = :is_confirmed, is_top_management = :is_top_management
                   WHERE id = :id";
 
         $stmt = $this->conn->prepare($query);
@@ -226,6 +229,7 @@ class User {
         $stmt->bindParam(':is_hr', $this->is_hr);
         $stmt->bindParam(':is_confirmed', $this->is_confirmed);
         $stmt->bindParam(':is_active', $this->is_active);
+        $stmt->bindParam(':is_top_management', $this->is_top_management);
         $stmt->bindParam(':id', $this->id);
 
         return $stmt->execute();
@@ -335,7 +339,7 @@ class User {
     /**
      * Check if email exists
      */
-    public function emailExists($email, $exclude_id = null) {
+    /* public function emailExists($email, $exclude_id = null) {
         $query = "SELECT id FROM " . $this->table_name . " 
                   WHERE (email = :email OR emp_email = :email)";
         
@@ -351,6 +355,22 @@ class User {
         }
         
         $stmt->execute();
+        return $stmt->rowCount() > 0;
+    } */
+    public function emailExists($email, $exclude_id = null) {
+        $query = "SELECT id FROM " . $this->table_name . " 
+                WHERE (email = ? OR emp_email = ?)";
+        
+        $params = [$email, $email];
+        
+        if ($exclude_id) {
+            $query .= " AND id != ?";
+            $params[] = $exclude_id;
+        }
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->execute($params);
+        
         return $stmt->rowCount() > 0;
     }
 
@@ -593,7 +613,205 @@ class User {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Get all potential supervisors excluding a specific user
+     */
+    public function getAllPotentialSupervisors($exclude_id = null) {
+        $query = "SELECT u.id, u.name, u.position, u.department, u.emp_number,
+                         c.name as company_name
+                  FROM " . $this->table_name . " u
+                  LEFT JOIN companies c ON u.company_id = c.id
+                  WHERE u.is_active = 1";
+        
+        if ($exclude_id) {
+            $query .= " AND id != :exclude_id";
+        }
+        
+        $query .= " ORDER BY u.name ASC";
+        
+        $stmt = $this->conn->prepare($query);
+        
+        if ($exclude_id) {
+            $stmt->bindParam(':exclude_id', $exclude_id);
+        }
+        
+        $stmt->execute();
+        
+        return $stmt;
+    }
   
+    /* 
+    check if user is top management 
+    */
     
-   
+    public function isTopManagement() {
+        return $this->is_top_management == 1;
+    }
+
+    /* 
+    get companies assigned to top management user 
+    */
+    public function getTopManagementCompanies() {
+        if (!$this->isTopManagement()) {
+            return [];
+        }
+
+        $query = "SELECT c.id, c.name, c.code
+                  FROM top_management_companies tmc
+                  JOIN companies c ON tmc.company_id = c.id
+                  WHERE tmc.user_id = ? AND c.is_active = 1
+                  ORDER BY c.name";
+
+        $stmt = $this->conn->prepare($query);
+        $stmt->execute([$this->id]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /* 
+    Assign Top Management user to a company 
+    */
+    public function assignTopManagementToCompany($company_id)
+    {
+        if (!$this->isTopManagement()) {
+            return false;
+        }
+
+        $query = "INSERT INTO top_management_companies (user_id, company_id) 
+                  VALUES (?, ?) 
+                  ON DUPLICATE KEY UPDATE assigned_at = CURRENT_TIMESTAMP";
+
+        $stmt = $this->conn->prepare($query);
+        return $stmt->execute([$this->id, $company_id]);
+
+    }
+
+    /* 
+    Remove Top management user from a company
+    */
+    public function removeTopManagementFromCompany($company_id)
+    {
+        $query = "DELETE FROM top_management_companies WHERE user_id = ? AND company_id = ?";
+        $stmt = $this->conn->prepare($query);
+        return $stmt->execute([$this->id, $company_id]);
+    }
+
+    /* 
+    Get all Top Management users for (admin management)
+
+    */
+
+    public static function getAllTopManagementUsers($db)
+    {
+        $query = "SELECT u.id, u.name, u.emp_number, u.email, u.position, 
+                         u.department, c.name as company_name,
+                         GROUP_CONCAT(DISTINCT tmc_comp.name SEPARATOR ', ') as top_management_companies
+                  FROM users u
+                  LEFT JOIN companies c ON u.company_id = c.id
+                  LEFT JOIN top_management_companies tmc ON u.id = tmc.user_id
+                  LEFT JOIN companies tmc_comp ON tmc.company_id = tmc_comp.id
+                  WHERE u.is_top_management = TRUE AND u.is_active = TRUE
+                  GROUP BY u.id
+                  ORDER BY u.name";
+
+        $stmt = $db->prepare($query);
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /*  generate password */
+    public function generatePasswordResetToken($email)
+    {
+        // Check if user exists
+        $query = "SELECT id FROM " . $this->table_name . " 
+                WHERE (email = ? OR emp_email = ?) AND is_active = 1";
+        $stmt = $this->conn->prepare($query);
+        $stmt->execute([$email, $email]);
+        
+        if ($stmt->rowCount() == 0) {
+            return false;
+        }
+        
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        $user_id = $user['id'];
+        
+        // Generate secure token
+        $token = bin2hex(random_bytes(32));
+        $expires_at = date('Y-m-d H:i:s', strtotime('+1 hour'));
+        
+        // Delete any existing unused tokens for this user
+        $delete_query = "DELETE FROM password_resets WHERE user_id = ? AND used = 0";
+        $delete_stmt = $this->conn->prepare($delete_query);
+        $delete_stmt->execute([$user_id]);
+        
+        // Insert new token
+        $insert_query = "INSERT INTO password_resets (user_id, email, token, expires_at) 
+                 VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))";
+        $insert_stmt = $this->conn->prepare($insert_query);
+        
+       if ($insert_stmt->execute([$user_id, $email, $token])) {
+            return $token;
+        }
+        return false;
+    }
+
+        
+    /**
+     * Verify password reset token
+     */
+    public function verifyResetToken($token) {
+        $query = "SELECT pr.*, u.id as user_id, u.name, u.email, u.emp_email
+                FROM password_resets pr
+                JOIN users u ON pr.user_id = u.id
+                WHERE pr.token = ? 
+                AND pr.used = 0 
+                AND pr.expires_at > NOW()
+                AND u.is_active = 1";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->execute([$token]);
+        
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+        
+    /**
+     * Reset password using token
+     */
+    public function resetPassword($token, $new_password) {
+        // Verify token
+        $reset_data = $this->verifyResetToken($token);
+        
+        if (!$reset_data) {
+            return false;
+        }
+        
+        $user_id = $reset_data['user_id'];
+        
+        try {
+            $this->conn->beginTransaction();
+            
+            // Update password
+            $hashed_password = password_hash($new_password, HASH_ALGO);
+            $update_query = "UPDATE " . $this->table_name . " SET password = ? WHERE id = ?";
+            $update_stmt = $this->conn->prepare($update_query);
+            $update_stmt->execute([$hashed_password, $user_id]);
+            
+            // Mark token as used
+            $mark_used_query = "UPDATE password_resets SET used = 1 WHERE token = ?";
+            $mark_stmt = $this->conn->prepare($mark_used_query);
+            $mark_stmt->execute([$token]);
+            
+            $this->conn->commit();
+            return true;
+            
+        } catch (Exception $e) {
+            $this->conn->rollBack();
+            error_log("Password reset error: " . $e->getMessage());
+            return false;
+        }
+    }
+
+
 }
